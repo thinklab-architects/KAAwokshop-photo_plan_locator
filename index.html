@@ -2,409 +2,1593 @@
 <html lang="zh-Hant">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>圖說紀錄產生器</title>
-<link rel="stylesheet" href="css/app.css">
-<link rel="stylesheet" href="css/home.css">
-<link rel="stylesheet" href="css/report.css">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>圖說紀錄產生器 | 吳欣儒 | THINKLAB</title>
+<script>/* freeze the gradient drift before first paint when capturing with ?qa */
+if(/(\?|&)(qa|print)\b/.test(location.search))document.documentElement.className='noanim';</script>
+<style>
+/* ============================================================
+   THINKLAB deck — design language lifted from 20260424_AI沙龍
+   band gradient #8592C5 → transparent, white body,
+   Microsoft JhengHei UI, periwinkle accents
+   ============================================================ */
+:root{
+  --pw:#7684C0;          /* periwinkle — primary */
+  --pw-d:#414E8C;        /* deep periwinkle — headings on white */
+  --pw-l:#9AA6D2;        /* light periwinkle — rules, bullets */
+  --tint:#F1F4FC;        /* card tint */
+  --tint-b:#D3DAF0;      /* card border */
+  --navy:#0A1A46;
+  --ink:#12172A;         /* body ink — deliberately dark, decks carry a lot of text */
+  --body:#2B3247;        /* paragraph text */
+  --muted:#525A72;       /* secondary text — still passes on white */
+  --W:1600px;
+  --H:900px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:#20232E;
+  font-family:"Microsoft JhengHei UI","Microsoft JhengHei","PingFang TC","Noto Sans TC",
+              "Segoe UI",Arial,sans-serif;
+  color:var(--ink);
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ---------- stage ---------- */
+#viewport{position:fixed;inset:0;overflow:hidden}
+#stage{position:absolute;left:50%;top:50%;width:var(--W);height:var(--H);
+       transform-origin:center center;background:#fff;box-shadow:0 24px 80px rgba(0,0,0,.55)}
+.slide{position:absolute;inset:0;background:#fff;opacity:0;visibility:hidden;
+       transition:opacity .28s ease}
+.slide.on{opacity:1;visibility:visible}
+
+/* ---------- signature gradient band ----------
+   Four near-identical periwinkles crossfade on a 64s loop, so the header
+   drifts in hue without ever reading as an animation. The base layer under
+   them guarantees the band is never lighter than the deepest stop.        */
+.band{position:absolute;left:0;top:0;width:100%;height:22%;overflow:hidden;
+  background:linear-gradient(180deg,#7684C0 0%,#7684C0 26%,rgba(118,132,192,.62) 56%,
+             rgba(118,132,192,.20) 80%,rgba(118,132,192,0) 100%);}
+.slide.tall .band{height:30%}
+.band i{position:absolute;inset:0;opacity:0}
+/* only the slide on screen animates — 57 idle bands would otherwise each hold a layer */
+.slide.on .band i{animation:bandcycle 64s ease-in-out infinite}
+.band i:nth-child(1){animation-delay:-0s;
+  background:linear-gradient(180deg,#7684C0 0%,#7684C0 26%,rgba(118,132,192,.62) 56%,
+             rgba(118,132,192,.20) 80%,rgba(118,132,192,0) 100%)}
+.band i:nth-child(2){animation-delay:-16s;
+  background:linear-gradient(180deg,#6E86C6 0%,#6E86C6 26%,rgba(110,134,198,.62) 56%,
+             rgba(110,134,198,.20) 80%,rgba(110,134,198,0) 100%)}
+.band i:nth-child(3){animation-delay:-32s;
+  background:linear-gradient(180deg,#8280C2 0%,#8280C2 26%,rgba(130,128,194,.62) 56%,
+             rgba(130,128,194,.20) 80%,rgba(130,128,194,0) 100%)}
+.band i:nth-child(4){animation-delay:-48s;
+  background:linear-gradient(180deg,#6F8EBE 0%,#6F8EBE 26%,rgba(111,142,190,.62) 56%,
+             rgba(111,142,190,.20) 80%,rgba(111,142,190,0) 100%)}
+@keyframes bandcycle{
+  0%{opacity:0} 7%{opacity:1} 25%{opacity:1} 32%{opacity:0} 100%{opacity:0}
+}
+@media (prefers-reduced-motion:reduce){
+  .band i,.slide.on .band i{animation:none}
+  .band i:nth-child(1){opacity:1}
+}
+/* .noanim freezes the drift — used by prefers-reduced-motion and by ?qa capture */
+.noanim .band i,.noanim .slide.on .band i{animation:none}
+.noanim .band i:nth-child(1){opacity:1}
+
+/* ---------- header ---------- */
+.hd{position:absolute;left:52px;right:52px;top:26px;display:flex;
+    justify-content:space-between;align-items:flex-start;gap:40px}
+.kicker{font-size:21px;font-weight:400;color:#fff;letter-spacing:.055em;
+        line-height:1.35;opacity:.95}
+.hd h1{font-size:35px;font-weight:700;color:#fff;line-height:1.3;
+       letter-spacing:.01em;margin-top:2px;max-width:1120px}
+.hd h1 .lt{font-weight:400}
+.brand{font-size:27px;font-weight:700;color:#fff;text-align:right;
+       line-height:1.16;letter-spacing:.03em;white-space:nowrap;flex:none}
+
+/* ---------- body region ---------- */
+.body{position:absolute;left:52px;right:52px;top:224px;bottom:66px}
+/* text-only slides: stack from the top so the block keeps the deck's rhythm,
+   instead of stretching cards into hollow boxes */
+.body.vc{display:flex;flex-direction:column;justify-content:flex-start;padding-top:34px}
+.slide.tall .body{top:300px}
+
+/* ---------- footer ---------- */
+.ft{position:absolute;left:52px;right:52px;bottom:24px;display:flex;
+    justify-content:space-between;font-size:15px;color:#6B7288;letter-spacing:.05em}
+
+/* ---------- typography helpers ---------- */
+.lead{font-size:20px;color:var(--muted);line-height:1.7}
+.stmt{font-size:32px;font-weight:700;color:var(--navy);line-height:1.42}
+.mega{font-size:52px;font-weight:700;color:var(--pw);line-height:1.24;letter-spacing:.01em}
+.note{font-size:21px;font-weight:700;color:var(--ink);line-height:1.62}
+.chain{font-size:20px;color:var(--pw-d);letter-spacing:.04em}
+.quote{font-size:23px;color:var(--pw-d);line-height:1.6;font-style:italic}
+.hl{color:var(--pw)}
+
+/* ---------- cards ---------- */
+.card{background:var(--tint);border:1px solid var(--tint-b);border-radius:7px;
+      padding:14px 16px;display:flex;flex-direction:column;min-height:0}
+.card h3{font-size:17px;font-weight:700;color:var(--pw-d);line-height:1.35;margin-bottom:7px}
+.card p{font-size:14.5px;color:var(--body);line-height:1.62}
+.shot{width:100%;background:#fff;border:1px solid var(--tint-b);border-radius:5px;
+      overflow:hidden;flex:1 1 auto;min-height:0}
+.shot img{width:100%;height:100%;object-fit:cover;object-position:top center;display:block}
+.tile{display:flex;flex-direction:column;gap:9px;min-height:0}
+/* keep every card heading on the same baseline across a row */
+.tile>div:last-child{flex:none;min-height:78px}
+
+/* image3.gif ships with black side padding — crop to its content box */
+.gcrop{position:relative;overflow:hidden;margin:auto;background:#fff;
+       border:1px solid var(--tint-b);border-radius:5px}
+.gcrop img{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+           width:160.8%;height:103.6%;max-width:none;display:block}
+
+/* ---------- video ---------- */
+.vwrap{position:absolute;inset:0;display:flex;flex-direction:column;gap:12px}
+.vwrap video{flex:1 1 auto;width:100%;min-height:0;object-fit:contain;background:#0F1220;
+             border-radius:7px}
+.vcap{font-size:17px;color:var(--pw-d);letter-spacing:.03em;flex:none}
+
+/* ---------- grids ---------- */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:26px;height:100%}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
+/* cards size to their text and centre in the space instead of stretching hollow.
+   height:auto also cancels the height:100% that .g2 carries. */
+.hug{align-content:center;height:auto}
+.col{display:flex;flex-direction:column;min-height:0}
+
+/* ---------- cover / section divider / app cover ---------- */
+#cover,.cover{background:linear-gradient(165deg,#2E3766 0%,#5D6CAE 34%,#7C89C0 62%,#A9B4DC 100%);
+              background-size:180% 180%;background-position:0% 0%;
+              animation:coverdrift 90s ease-in-out infinite alternate}
+@keyframes coverdrift{from{background-position:0% 0%} to{background-position:100% 100%}}
+@media (prefers-reduced-motion:reduce){#cover,.cover{animation:none}}
+.noanim #cover,.noanim .cover{animation:none}
+/* export screenshots (?print) don't want the on-screen chrome baked in */
+.noanim #hint,.noanim #bar{display:none}
+#cover .band,.cover .band{display:none}
+.cover .mark{position:absolute;right:96px;bottom:74px;text-align:right;color:#fff;
+             font-size:40px;font-weight:700;line-height:1.14;letter-spacing:.04em}
+.cover .rule{width:150px;height:2px;background:rgba(255,255,255,.55);margin:30px 0 20px}
+
+/* ---------- numbered steps ---------- */
+.num{width:32px;height:32px;border-radius:50%;background:var(--pw);color:#fff;font-size:16px;
+     font-weight:700;display:flex;align-items:center;justify-content:center;flex:none}
+.num.sm{width:25px;height:25px;font-size:13px}
+.steps{display:flex;flex-direction:column;gap:13px}
+.step{display:grid;grid-template-columns:32px 1fr;gap:13px;align-items:start}
+.step.sm{grid-template-columns:25px 1fr;gap:11px}
+.step h4{font-size:17.5px;font-weight:700;color:var(--navy);line-height:1.3;margin-bottom:3px}
+.step.sm h4{font-size:16px}
+.step p{font-size:14.5px;color:var(--body);line-height:1.6}
+
+/* ---------- tables ---------- */
+.tbl{width:100%;border-collapse:collapse;font-size:14.5px}
+.tbl th{background:var(--tint);color:var(--pw-d);font-weight:700;text-align:left;
+        padding:9px 14px;border-bottom:1px solid var(--tint-b)}
+.tbl td{padding:9px 14px;border-bottom:1px solid #EEF0F7;color:var(--body);line-height:1.55;
+        vertical-align:top}
+.tbl tr:last-child td{border-bottom:none}
+.tbl tr.total td{font-weight:700;color:var(--navy);background:var(--tint)}
+.tbl td.n,.tbl th.n{text-align:right}
+.tbl td.k{color:var(--ink);font-weight:700;white-space:nowrap}
+
+/* ---------- footnote band ---------- */
+.fn{background:var(--tint);border:1px solid var(--tint-b);border-radius:7px;padding:12px 18px;
+    font-size:15px;color:var(--body);line-height:1.65}
+.fn b{color:var(--pw-d);font-weight:700}
+
+/* ---------- stats ---------- */
+.figure{font-size:42px;font-weight:700;color:var(--pw);line-height:1}
+.figure-l{font-size:13.5px;color:var(--muted);margin-top:6px;line-height:1.4}
+
+/* ---------- bullet list ---------- */
+.bl{list-style:none;display:flex;flex-direction:column;gap:7px}
+.bl li{font-size:14.5px;color:var(--body);line-height:1.6;padding-left:15px;position:relative}
+.bl li::before{content:"";position:absolute;left:0;top:.62em;width:5px;height:5px;
+               border-radius:50%;background:var(--pw-l)}
+.bl.tight li{font-size:17px;line-height:1.5}
+
+/* ---------- UI mock-ups ---------- */
+.mock{background:#F7F8FC;border:1px solid var(--tint-b);border-radius:8px;padding:13px;
+      display:flex;flex-direction:column;gap:10px;min-height:0}
+.mrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip{background:#fff;border:1px solid var(--tint-b);border-radius:5px;padding:5px 10px;
+      font-size:12.5px;color:var(--body);white-space:nowrap}
+.chip.on{background:var(--pw);border-color:var(--pw);color:#fff;font-weight:700}
+.chip.gh{background:transparent;border-color:transparent;color:#6B7288}
+.fld{background:#fff;border:1px solid var(--tint-b);border-radius:5px;padding:4px 10px;min-width:0}
+.fld span{display:block;font-size:13px;color:#6B7288;letter-spacing:.04em}
+.fld b{display:block;font-size:16px;color:var(--ink);font-weight:400;white-space:nowrap}
+.pane{background:#fff;border:1px solid var(--tint-b);border-radius:6px;padding:10px;
+      min-height:0;display:flex;flex-direction:column}
+.pane>.t{font-size:12.5px;color:var(--pw-d);font-weight:700;margin-bottom:8px;flex:none}
+.mcap{font-size:16px;color:var(--muted);text-align:center;line-height:1.5}
+.canvas{background:#EEF1F9;border:1px solid var(--tint-b);border-radius:5px;
+        position:relative;flex:1 1 auto;min-height:0}
+.pin{position:absolute;width:26px;height:26px;border-radius:50%;font-size:13px;font-weight:700;
+     display:flex;align-items:center;justify-content:center;transform:translate(-50%,-50%);
+     background:#fff;color:var(--body);border:1px solid var(--tint-b)}
+.pin.on{background:var(--pw);color:#fff;border-color:var(--pw)}
+.pcard{background:#fff;border:1px solid var(--tint-b);border-radius:5px;padding:8px 10px}
+.pcard .h{font-size:16px;color:var(--ink);font-weight:700}
+.pcard .s{font-size:11.5px;color:#6B7288;margin-top:2px}
+.pcard .st{font-size:11.5px;color:var(--pw-d);margin-top:2px}
+.thumb{background:#EEF1F9;border-radius:4px;height:52px}
+
+/* ============================================================
+   SECTION 01 components (Retooling deck)
+   ============================================================ */
+.card.acc{background:#E9EDFA;border-color:var(--pw-l)}
+.xref{font-size:16px;color:var(--pw-d);margin-top:10px;padding-top:9px;
+      border-top:1px solid var(--tint-b)}
+.pull{font-size:18px;font-weight:700;color:var(--navy);line-height:1.6;margin-top:12px}
+.eg{font-size:16px;color:var(--muted);line-height:1.6;margin-top:10px}
+.before{font-size:16px;color:var(--pw-d);margin-top:9px}
+.se{font-size:15px;letter-spacing:.13em;color:var(--muted);font-weight:700}
+.figure{font-size:44px;font-weight:700;color:var(--pw-d);line-height:1.05}
+.card.acc .figure{color:#2F3C86}
+.unit{font-size:18px;color:var(--muted);margin-left:6px}
+.cmd{font-size:17px;color:var(--navy);line-height:1.7;font-weight:700}
+
+/* four-layer stack (slide 04) */
+.layer{display:grid;grid-template-columns:112px 200px 1fr;gap:16px;align-items:center;
+       background:#fff;border:1px solid var(--tint-b);border-radius:7px;padding:10px 16px}
+.layer.acc{background:#E9EDFA;border-color:var(--pw-l)}
+.layer.dash{border-style:dashed;background:var(--tint)}
+.lk{font-size:15px;letter-spacing:.1em;color:var(--muted)}
+.lt{font-size:21px;font-weight:700;color:var(--navy)}
+.ld{font-size:16px;color:var(--body);line-height:1.5}
+
+/* 27-tool grids (slides 01 / 05 / 14) */
+.hubgrid{display:grid;grid-template-columns:repeat(9,1fr);gap:9px}
+.mcell{background:#fff;border:1px solid var(--tint-b);border-radius:6px;padding:9px 10px;
+       display:flex;flex-direction:column;justify-content:space-between;min-height:96px}
+.mcell .mn{font-size:15px;letter-spacing:.08em;color:var(--muted)}
+.mcell .mcp{color:var(--pw-d);font-weight:700}
+.mcell .mt{font-size:17px;font-weight:700;color:var(--ink);line-height:1.25}
+.mcell .md{font-size:15px;color:var(--muted);margin-top:3px;line-height:1.4}
+.t-cad{background:#FBF5EA}.t-chk{background:#EFF4EC}.t-col{background:#EDF1FA}.t-ai{background:#FAEFEC}
+.minigrid{display:grid;grid-template-columns:repeat(9,1fr);gap:6px}
+.minigrid .mcell{min-height:34px;padding:5px 6px;border-color:rgba(255,255,255,.34);
+                 background:rgba(255,255,255,.16)}
+.minigrid .mn{font-size:12px;color:rgba(255,255,255,.72)}
+.minigrid .mcp{font-size:12px;color:#fff}
+.lchip{display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.lchip i{width:14px;height:14px;border-radius:3px;display:inline-block;
+         border:1px solid var(--tint-b);font-style:normal;line-height:1}
+
+/* tool list rows (slides 06 / 07) */
+.toollist{display:flex;flex-direction:column}
+.trow{display:grid;grid-template-columns:44px 200px 1fr;gap:14px;align-items:baseline;
+      padding:9px 4px;border-bottom:1px solid var(--tint-b)}
+.trow:last-child{border-bottom:none}
+.tn{font-size:15px;color:var(--muted)}
+.tt{font-size:20px;font-weight:700;color:var(--ink)}
+.tt em{font-style:normal;font-size:15px;letter-spacing:.08em;color:var(--pw-d);
+       border:1px solid var(--pw-l);border-radius:4px;padding:1px 5px;margin-left:7px;vertical-align:2px}
+.td{font-size:17px;color:var(--body);line-height:1.55}
+
+/* flow / box diagrams (slides 06 / 08 / 10) */
+.flow{display:flex;align-items:stretch;gap:10px}
+.fbox{background:#fff;border:1px solid var(--tint-b);border-radius:7px;padding:11px 14px;
+      display:flex;flex-direction:column;gap:3px;flex:1;text-align:center;justify-content:center}
+.fbox b{font-size:18px;color:var(--ink)}
+.fbox span{font-size:15px;color:var(--muted);letter-spacing:.05em}
+.fbox.on{background:#E9EDFA;border-color:var(--pw)}
+.fbox.on b{color:var(--navy)}
+.farr{display:flex;align-items:center;color:var(--pw-l);font-size:22px}
+.apibar{background:var(--tint);border:1px solid var(--pw-l);border-radius:7px;padding:12px;
+        text-align:center}
+.apibar b{display:block;font-size:20px;letter-spacing:.14em;color:var(--navy)}
+.apibar span{font-size:15px;letter-spacing:.1em;color:var(--muted)}
+.tbox{background:#fff;border:1px solid var(--tint-b);border-radius:6px;padding:11px 8px;
+      text-align:center;font-size:17px;font-weight:700;color:var(--ink)}
+.tbox.on{background:#E9EDFA;border-color:var(--pw);color:var(--navy)}
+.siteread{background:#fff;border:1px solid var(--tint-b);border-radius:6px;padding:10px}
+
+/* ranking bars (slide 11) */
+.ranks{display:flex;flex-direction:column;gap:9px}
+.rk{display:grid;grid-template-columns:150px 1fr 56px;gap:14px;align-items:center}
+.rn{font-size:17px;color:var(--ink);text-align:right}
+.rb{background:#EDEFF7;border-radius:3px;height:22px;overflow:hidden;display:block}
+.rb i{display:block;height:100%;background:#3E4A86;border-radius:3px}
+.rv{font-size:17px;color:var(--body);text-align:right}
+
+/* ============================================================
+   WORKSHOP SECTION — larger type throughout.
+   Presented to a room, so nothing here drops below ~18px.
+   ============================================================ */
+/* bigger type needs more clearance above the footer */
+.lg .body{bottom:80px}
+.lg .body.vc{padding-top:16px}
+.lg .kicker{font-size:23px}
+.lg .hd h1{font-size:38px}
+.lg .lead{font-size:23px;line-height:1.7}
+.lg .card h3{font-size:22px;line-height:1.35;margin-bottom:9px}
+.lg .card p{font-size:19px;line-height:1.65}
+.lg .bl li{font-size:19px;line-height:1.65;padding-left:19px}
+.lg .bl li::before{width:6px;height:6px;top:.66em}
+.lg .bl.tight li{font-size:18px;line-height:1.6}
+.lg .step h4{font-size:22px;margin-bottom:5px}
+.lg .step p{font-size:19px;line-height:1.65}
+.lg .step.sm h4{font-size:21px}
+.lg .steps{gap:17px}
+.lg .num{width:38px;height:38px;font-size:19px}
+.lg .num.sm{width:30px;height:30px;font-size:16px}
+.lg .step{grid-template-columns:38px 1fr;gap:16px}
+.lg .step.sm{grid-template-columns:30px 1fr;gap:14px}
+.lg .tbl{font-size:19px}
+.lg .tbl th{padding:12px 18px}
+.lg .tbl td{padding:12px 18px;line-height:1.6}
+.lg .fn{font-size:19px;line-height:1.7;padding:14px 20px}
+.lg .figure{font-size:48px}
+.lg .figure-l{font-size:17px}
+.lg .mcap{font-size:17px}
+.lg .stmt{font-size:30px}
+
+/* mock-ups: still UI-like, but readable from the back of the room */
+.lg .chip{font-size:16px;padding:7px 13px;border-radius:6px}
+.lg .fld{padding:6px 13px;border-radius:6px}
+.lg .fld span{font-size:15px}
+.lg .fld b{font-size:17px}
+.lg .pane>.t{font-size:16px;margin-bottom:10px}
+.lg .pcard{padding:10px 13px}
+.lg .pcard .h{font-size:17px}
+.lg .pcard .s,.lg .pcard .st{font-size:16px}
+.lg .pin{width:32px;height:32px;font-size:16px}
+.lg .mock{padding:16px;gap:12px}
+.cv{position:absolute;left:96px;top:0;bottom:0;display:flex;flex-direction:column;
+    justify-content:center;gap:0;color:#fff}
+.cv .eyebrow{font-size:23px;letter-spacing:.14em;opacity:.9}
+.cv .big{font-size:82px;font-weight:700;letter-spacing:.02em;line-height:1.1;margin-top:26px}
+.cv .zh{font-size:31px;letter-spacing:.24em;margin-top:14px;opacity:.94}
+.cv .who{font-size:24px;letter-spacing:.1em;margin-top:52px;opacity:.9}
+#cover .mark{position:absolute;right:96px;bottom:74px;text-align:right;color:#fff;
+          font-size:40px;font-weight:700;line-height:1.14;letter-spacing:.04em}
+
+/* ---------- S1 stat ---------- */
+.stat{border:1px solid var(--tint-b);background:var(--tint);border-radius:7px;
+      padding:14px 18px;display:flex;align-items:baseline;gap:14px}
+.stat b{font-size:38px;color:var(--pw);font-weight:700;line-height:1}
+.stat span{font-size:14.5px;color:var(--muted);line-height:1.5}
+
+/* ---------- S2 workflow diagram ---------- */
+.diagram{position:relative;width:800px;height:544px}
+.diagram svg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.dlabel{position:absolute;text-align:right;font-size:21px;font-weight:700;
+        color:var(--pw);line-height:1.2}
+.dbox{position:absolute;border:2.5px dashed var(--pw-l);border-radius:14px;
+      display:flex;align-items:center;justify-content:center}
+.dbox.hard{border:4px dotted var(--pw-d)}
+.dtext{position:absolute;font-size:33px;font-weight:700;color:var(--pw-d);
+       line-height:1.16;text-align:center}
+.dtext em{font-style:normal;color:#9CC4D8;display:block}
+.dsmall{position:absolute;font-size:15.5px;font-weight:700;color:var(--muted);
+        line-height:1.5}
+.dbig{position:absolute;font-size:31px;font-weight:700;color:var(--ink);letter-spacing:.02em}
+.dmid{position:absolute;font-size:20px;font-weight:700;color:var(--pw-l);
+      line-height:1.4;text-align:center}
+
+/* ---------- S11 transition list ---------- */
+.shift{border-top:1px solid var(--tint-b);border-bottom:1px solid var(--tint-b);
+       padding:12px 0;display:flex;flex-direction:column;gap:5px}
+.shift div{display:grid;grid-template-columns:140px 40px 1fr;align-items:center;
+           font-size:17px;color:var(--body)}
+.shift div span:nth-child(2){color:var(--pw);text-align:center;font-weight:700}
+.shift div.hdr{font-size:18px;font-weight:700;color:var(--pw-d)}
+
+/* ---------- chrome: progress, counter, overview ---------- */
+#bar{position:fixed;left:0;top:0;height:3px;background:var(--pw);z-index:60;
+     transition:width .28s ease}
+#hint{position:fixed;left:0;right:0;bottom:10px;text-align:center;color:#6C7288;
+      font-size:12px;z-index:60;letter-spacing:.05em;transition:opacity .5s ease}
+#hint.dim{opacity:0}
+#ov{position:fixed;inset:0;background:#1A1D28;z-index:80;display:none;
+    overflow:auto;padding:28px}
+#ov.on{display:block}
+#ovg{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
+.ovi{background:#fff;border-radius:5px;overflow:hidden;cursor:pointer;position:relative;
+     aspect-ratio:16/9;border:2px solid transparent}
+.ovi:hover{border-color:var(--pw)}
+.ovi .mini{transform-origin:top left;pointer-events:none}
+.ovi b{position:absolute;right:6px;bottom:4px;font-size:11px;color:#6B7288;z-index:2}
+</style>
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════════════════
-     主介面：所有工地報告
-     ══════════════════════════════════════════════════════ -->
-<div id="homeView" class="view">
-  <header class="homeBar">
-    <div class="brand big">
-      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-        <path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-5h6v5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
-      </svg>
-      <span>圖說紀錄</span>
-    </div>
+<div id="bar"></div>
+<div id="viewport"><div id="stage">
 
-    <div class="homeSearch">
-      <svg viewBox="0 0 24 24" width="14" height="14"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-      <input id="projSearch" type="search" placeholder="搜尋專案、紀錄項目、紀錄者…">
-    </div>
+<!-- ============================== 00 COVER ============================== -->
+<!-- ==================================================================
+     SECTION 01 · Retooling the Architecture Office with AI  (14 頁)
+     ================================================================== -->
 
-    <label class="homeSort">排序
-      <select id="projSort">
-        <option value="updated">最近編輯</option>
-        <option value="date">紀錄日期</option>
-        <option value="name">專案名稱</option>
-        <option value="photos">照片數量</option>
-      </select>
-    </label>
+<!-- RT 01 cover -->
+<!-- ==================================================================
+     Replace everything from here down to the last </section> with your
+     own slides. Three specimens follow: a cover, a standard content
+     page, and a full-bleed video page.
 
-    <div class="homeActions">
-      <button id="btnHelp" class="btn ghost" title="開啟圖文使用說明">使用說明</button>
-      <button id="btnSample" class="btn ghost" title="加入兩份示範紀錄（含平面圖與照片），可以直接練習">示範資料</button>
-      <button id="btnOpenFile" class="btn ghost">開啟紀錄檔</button>
-      <button id="btnNewProj" class="btn primary">＋ 新增紀錄</button>
-    </div>
-  </header>
+     Keep the `lg` class on every section — it carries the large type
+     scale that makes the deck readable when projected.
+     ================================================================== -->
 
-  <main class="homeMain">
-    <div id="projStats" class="projStats"></div>
-    <div id="projGrid" class="projGroups"></div>
-    <div id="projEmpty" class="homeEmpty" hidden>
-      <svg viewBox="0 0 24 24" width="46" height="46"><path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-5h6v5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
-      <p><strong>還沒有任何紀錄</strong><br>按右上「＋ 新增紀錄」開始，或用「開啟紀錄檔」讀入 <code>.sitelog</code></p>
-    </div>
-    <div id="projNoMatch" class="homeEmpty" hidden><p>沒有符合搜尋條件的紀錄</p></div>
-  </main>
-</div>
+<!-- ---------- cover ---------- -->
+<!-- ==================================================================
+     圖說紀錄產生器 · 吳欣儒（成大建築）　slides 01–05
+     THINKLAB 藕紫藍樣式；原稿深灰＋琥珀已全數換掉。整份無圖檔，
+     所有「照片／平面圖／介面」都是 HTML+CSS 畫出來的。
+     ================================================================== -->
 
-<!-- ══════════════════════════════════════════════════════
-     編輯介面
-     ══════════════════════════════════════════════════════ -->
-<div id="editorView" class="view" hidden>
-
-  <header class="topbar">
-    <button id="btnBackHome" class="backBtn" title="回到全部紀錄">
-      <svg viewBox="0 0 24 24" width="15" height="15"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      全部紀錄
-    </button>
-
-    <div class="metaFields">
-      <label>專案名稱<input id="mProject" type="text" placeholder="○○新建工程 / ○○宅裝修"></label>
-      <label>紀錄項目<input id="mSubject" type="text" placeholder="3F 泥作查驗"></label>
-      <label>日期<input id="mDate" type="date"></label>
-      <label>紀錄者<input id="mAuthor" type="text" placeholder="姓名"></label>
-    </div>
-
-    <div class="topActions">
-      <span id="saveState" class="saveState">已儲存</span>
-      <button id="btnSaveFile" class="btn ghost" title="把這份紀錄存成 .sitelog 檔備份">匯出紀錄檔</button>
-      <button id="btnReport" class="btn primary">
-        <svg viewBox="0 0 24 24" width="15" height="15"><path d="M6 3h9l5 5v13H6z M15 3v5h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-        產生報告
-      </button>
-    </div>
-  </header>
-
-  <main class="workspace" id="workspace">
-
-    <!-- ─── 左：照片清單 ─── -->
-    <section class="pane paneList">
-      <div class="paneHead">
-        <h2>照片 <span id="photoCount" class="count">0</span></h2>
-        <button id="btnAddPhotos" class="btn small">＋ 匯入照片</button>
+<!-- ============================== 01 COVER ============================== -->
+<section class="slide cover lg" id="cover">
+  <div class="cv" style="right:96px;justify-content:center">
+    <div class="eyebrow">演 講 分 享</div>
+    <div class="big" style="font-size:76px;line-height:1.12;margin-top:20px">圖說紀錄產生器</div>
+    <div class="zh" style="font-size:30px;letter-spacing:.04em;margin-top:22px;opacity:.97">從「照片跟平面圖對不起來」開始，到自己架一個網站</div>
+    <div style="font-size:21px;letter-spacing:.03em;line-height:1.6;margin-top:12px;opacity:.84">事務所的現場紀錄問題，怎麼被拆成三個畫面、再交給 AI 做出來</div>
+    <div class="rule"></div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:26px">
+      <div style="background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.30);border-radius:7px;padding:18px 20px;display:flex;align-items:center;gap:16px">
+        <div class="num" style="background:#fff;color:#2E3766">1</div>
+        <div>
+          <div style="font-size:23px;font-weight:700;color:#fff;line-height:1.3">主畫面</div>
+          <div style="font-size:19px;color:rgba(255,255,255,.84);line-height:1.5;margin-top:4px">所有紀錄依專案分類</div>
+        </div>
       </div>
-      <ul id="photoList" class="photoList"></ul>
-      <div id="photoEmpty" class="emptyHint">
-        <p>按上方「＋ 匯入照片」<br>或把檔案拖進來<br><span class="hint">支援影像與 PDF</span></p>
+      <div style="background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.30);border-radius:7px;padding:18px 20px;display:flex;align-items:center;gap:16px">
+        <div class="num" style="background:#fff;color:#2E3766">2</div>
+        <div>
+          <div style="font-size:23px;font-weight:700;color:#fff;line-height:1.3">編輯頁面</div>
+          <div style="font-size:19px;color:rgba(255,255,255,.84);line-height:1.5;margin-top:4px">照片 · 平面圖 · 照片編輯區</div>
+        </div>
       </div>
-      <div class="paneFoot">
-        <span class="hint">拖曳可調整順序 · 編號會同步到平面圖與報告</span>
+      <div style="background:rgba(255,255,255,.13);border:1px solid rgba(255,255,255,.30);border-radius:7px;padding:18px 20px;display:flex;align-items:center;gap:16px">
+        <div class="num" style="background:#fff;color:#2E3766">3</div>
+        <div>
+          <div style="font-size:23px;font-weight:700;color:#fff;line-height:1.3">匯出頁面</div>
+          <div style="font-size:19px;color:rgba(255,255,255,.84);line-height:1.5;margin-top:4px">自動排版，也能自己調</div>
+        </div>
       </div>
-    </section>
+    </div>
+    <div class="who" style="margin-top:46px;font-size:22px">吳欣儒　·　國立成功大學 建築學系　·　2026.08</div>
+  </div>
+  <div class="mark">THINKLAB<br>2026</div>
+</section>
 
-    <div class="resizer" id="resizeL" title="拖曳調整寬度（雙擊還原）"></div>
+<!-- ============================== 02 大綱 ============================== -->
+<section class="slide lg">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker">大 綱</p>
+      <h1>今天要講的五件事</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+  <div class="body vc">
+    <div class="g2" style="height:auto;gap:56px;align-content:start">
+      <div class="steps" style="gap:34px">
+        <div class="step">
+          <div class="num">1</div>
+          <div><h4>問題</h4><p>工地探勘回來一堆照片，跟平面圖是分開的兩件事</p></div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div><h4>架構</h4><p>把工具拆成三個畫面：主畫面、編輯頁面、匯出頁面</p></div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div><h4>做法</h4><p>先跟 AI 講大架構，拿到一版草稿，再一項一項補細節</p></div>
+        </div>
+      </div>
+      <div class="steps" style="gap:34px">
+        <div class="step">
+          <div class="num">4</div>
+          <div><h4>成品</h4><p>實際的畫面：怎麼定位、怎麼標註、怎麼出圖</p></div>
+        </div>
+        <div class="step">
+          <div class="num">5</div>
+          <div><h4>踩過的坑</h4><p>做的過程中卡住的地方，還有怎麼解決</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>02 / 14</span></div>
+</section>
 
-    <!-- ─── 中：平面圖 ─── -->
-    <section class="pane panePlan">
-      <div class="paneHead">
-        <h2>平面圖</h2>
-        <div class="headTools">
-          <button id="btnZoomOut" class="iconBtn" title="縮小">−</button>
-          <span id="zoomLabel" class="zoomLabel">100%</span>
-          <button id="btnZoomIn" class="iconBtn" title="放大">＋</button>
-          <button id="btnZoomFit" class="btn small ghost" title="縮放至符合視窗">符合</button>
-          <button id="btnCal" class="btn small ghost" title="輸入原圖比例（例如 1:100），報告就能以真實比例出圖；也可改用兩點量測">比例尺</button>
-          <button id="btnCropPlan" class="btn small ghost">裁切</button>
-          <button id="btnAddPlan" class="btn small">＋ 匯入平面圖</button>
+<!-- ============================== 03 關於我 ============================== -->
+<section class="slide lg">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker">關 於 我</p>
+      <h1>吳欣儒　Hsin-Ru Wu</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+  <div class="body vc">
+    <div class="g3" style="gap:26px;align-items:start">
+
+      <div class="card" style="padding:22px 24px">
+        <h3 style="font-size:24px;margin-bottom:18px">學歷</h3>
+        <div style="font-size:17px;color:var(--pw);letter-spacing:.04em">2023 – now</div>
+        <div style="font-size:21px;color:var(--ink);line-height:1.45;margin-top:3px">國立成功大學　建築學系工程組</div>
+        <div style="font-size:16px;color:var(--muted);line-height:1.45;margin-top:2px">National Cheng Kung University</div>
+        <div style="font-size:17px;color:var(--pw);letter-spacing:.04em;margin-top:20px">2020 – 2023</div>
+        <div style="font-size:21px;color:var(--ink);line-height:1.45;margin-top:3px">國立新竹女子高級中學</div>
+        <div style="font-size:16px;color:var(--muted);line-height:1.45;margin-top:2px">National Hsinchu Girls' Senior High School</div>
+      </div>
+
+      <div class="card" style="padding:22px 24px">
+        <h3 style="font-size:24px;margin-bottom:16px">經歷</h3>
+        <div style="font-size:19px;font-weight:700;color:var(--navy)">實習</div>
+        <div style="font-size:17px;color:var(--pw);letter-spacing:.04em;margin-top:8px">2025.07 – 08</div>
+        <div style="font-size:21px;color:var(--ink);line-height:1.45;margin-top:3px">林威政建築師事務所</div>
+        <div style="font-size:16px;color:var(--muted);line-height:1.45;margin-top:2px">W.C.L. Architects</div>
+        <div style="font-size:19px;font-weight:700;color:var(--navy);margin-top:20px">工作坊</div>
+        <div style="font-size:17px;color:var(--pw);letter-spacing:.04em;margin-top:8px">2024.08</div>
+        <div style="font-size:20px;color:var(--ink);line-height:1.45;margin-top:2px">永續行動：木構造建築實作工作坊</div>
+        <div style="font-size:17px;color:var(--pw);letter-spacing:.04em;margin-top:10px">2025.02</div>
+        <div style="font-size:20px;color:var(--ink);line-height:1.45;margin-top:2px">專案管理工作坊</div>
+        <div style="font-size:17px;color:var(--pw);letter-spacing:.04em;margin-top:10px">2026.02</div>
+        <div style="font-size:20px;color:var(--ink);line-height:1.45;margin-top:2px">機械手臂工作坊</div>
+      </div>
+
+      <div class="card acc" style="padding:22px 24px">
+        <h3 style="font-size:24px;margin-bottom:18px">聯絡方式</h3>
+        <div style="font-size:17px;color:var(--pw-d);letter-spacing:.04em">Instagram</div>
+        <div style="font-size:22px;color:var(--ink);line-height:1.45;margin-top:4px">cindy_wu_0914</div>
+      </div>
+
+    </div>
+  </div>
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>03 / 14</span></div>
+</section>
+
+<!-- ============================== 04 起點 ============================== -->
+<section class="slide lg">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker">起 點</p>
+      <h1>照片和平面圖，對不起來</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+  <div class="body vc">
+    <div style="display:grid;grid-template-columns:45fr 55fr;gap:32px;align-items:start">
+
+      <!-- 左：照片堆的模擬（無圖檔，全部是畫出來的方塊） -->
+      <div class="card" style="padding:20px 22px">
+        <h3 style="font-size:21px;margin-bottom:14px">工地探勘回來以後</h3>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px 14px">
+          <div>
+            <div style="height:74px;background:#E3E8F5;border:1px solid var(--tint-b);border-radius:5px"></div>
+            <div style="font-size:16px;color:var(--muted);text-align:center;margin-top:5px">IMG_2317.JPG</div>
+          </div>
+          <div>
+            <div style="height:74px;background:#E3E8F5;border:1px solid var(--tint-b);border-radius:5px"></div>
+            <div style="font-size:16px;color:var(--muted);text-align:center;margin-top:5px">IMG_2318.JPG</div>
+          </div>
+          <div>
+            <div style="height:74px;background:#E3E8F5;border:1px solid var(--tint-b);border-radius:5px"></div>
+            <div style="font-size:16px;color:var(--muted);text-align:center;margin-top:5px">IMG_2331.JPG</div>
+          </div>
+          <div>
+            <div style="height:74px;background:#E3E8F5;border:1px solid var(--tint-b);border-radius:5px"></div>
+            <div style="font-size:16px;color:var(--muted);text-align:center;margin-top:5px">IMG_2344.JPG</div>
+          </div>
+          <div>
+            <div style="height:74px;background:#E3E8F5;border:1px solid var(--tint-b);border-radius:5px"></div>
+            <div style="font-size:16px;color:var(--muted);text-align:center;margin-top:5px">IMG_2350.JPG</div>
+          </div>
+          <div>
+            <div style="height:74px;background:#E3E8F5;border:1px solid var(--tint-b);border-radius:5px"></div>
+            <div style="font-size:16px;color:var(--muted);text-align:center;margin-top:5px">IMG_2361.JPG</div>
+          </div>
+        </div>
+        <div style="font-size:22px;font-weight:700;color:var(--pw-d);text-align:center;line-height:1.4;margin-top:20px">這張到底是哪一間、哪一面牆？</div>
+        <div style="background:#fff;border:1px dashed var(--pw-l);border-radius:5px;padding:11px 14px;text-align:center;font-size:19px;color:var(--muted);line-height:1.5;margin-top:14px">3F 平面圖.pdf　—　在另一個資料夾</div>
+      </div>
+
+      <!-- 右：四條問題 -->
+      <div class="steps" style="gap:20px">
+        <div class="step">
+          <div class="num">1</div>
+          <div><h4>照片只剩檔名</h4><p>一次探勘幾十張，回來只剩 IMG_2317.JPG —— 拍的當下知道，隔一週就忘了</p></div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div><h4>位置資訊沒有留下來</h4><p>平面圖在另一個檔案，照片在哪拍、朝哪個方向拍，全靠腦袋記</p></div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div><h4>整理全靠手工</h4><p>回辦公室用 Word／簡報一張一張貼、一個一個標，兩三個小時跑不掉</p></div>
+        </div>
+        <div class="step">
+          <div class="num">4</div>
+          <div><h4>每個人排出來的都不一樣</h4><p>交出去的格式不一致，隔一個月自己回頭看也讀不順</p></div>
         </div>
       </div>
 
-      <div id="planTabs" class="planTabs" hidden></div>
+    </div>
+    <div class="fn" style="margin-top:20px">真正花時間的不是拍照，是拍完以後的整理 —— 而且整理的過程中，<b>最關鍵的那個資訊（在哪裡拍的）已經流失了</b>。</div>
+  </div>
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>04 / 14</span></div>
+</section>
 
-      <div id="planStage" class="planStage">
-        <div id="planViewport" class="planViewport">
-          <div id="planCanvas" class="planCanvas">
-            <div id="planFrame" class="cropFrame">
-              <img id="planImg" alt="平面圖" draggable="false">
+<!-- ============================== 05 需求 ============================== -->
+<section class="slide lg">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker">需 求</p>
+      <h1>從需求轉換為工具</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+  <div class="body vc">
+    <div class="g4" style="align-items:start">
+      <div class="card" style="padding:18px 20px">
+        <h3 style="font-size:24px">即時</h3>
+        <ul class="bl">
+          <li>現場或當天就整理完</li>
+          <li>在平板或筆電上就能操作</li>
+        </ul>
+      </div>
+      <div class="card" style="padding:18px 20px">
+        <h3 style="font-size:24px">圖說與照片彙整</h3>
+        <ul class="bl">
+          <li>照片、位置、說明是同一筆資料</li>
+          <li>不會各自存在不同檔案裡</li>
+          <li>換一台電腦也不會走散</li>
+        </ul>
+      </div>
+      <div class="card" style="padding:18px 20px">
+        <h3 style="font-size:24px">看得懂</h3>
+        <ul class="bl">
+          <li>平面圖上標出拍攝點與方向</li>
+          <li>照片上可以圈、可以畫、可以寫</li>
+          <li>不用解釋就看得懂</li>
+        </ul>
+      </div>
+      <div class="card" style="padding:18px 20px">
+        <h3 style="font-size:24px">交得出去</h3>
+        <ul class="bl">
+          <li>直接印成 PDF 給業主或監造</li>
+          <li>有事務所的圖框與標題欄</li>
+          <li>格式固定，誰做都一樣</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="fn" style="margin-top:34px;display:grid;grid-template-columns:215px 1fr;gap:20px;align-items:start">
+      <b style="font-size:20px;line-height:1.5">那為什麼不用現成的</b>
+      <span>相簿 App 沒有平面圖　·　CAD／BIM 太重，現場開不動　·　Word 排版每次都要重來 —— 沒有一個把「照片＋位置＋說明」當成同一件事的工具。</span>
+    </div>
+
+    <div style="font-size:28px;font-weight:700;color:var(--pw-d);line-height:1.45;text-align:center;margin-top:36px">所以決定自己做一個：操作簡單方便且可以彙整所有需要的資訊的網頁、</div>
+  </div>
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>05 / 14</span></div>
+</section>
+
+<!-- ============================== 06 · 思考架構 ============================== -->
+<section class="slide lg">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker">思 考 架 構</p>
+      <h1>拆成三個畫面思考</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+  <div class="body vc">
+
+    <div class="g3" style="gap:22px;align-items:stretch">
+
+      <div class="card" style="padding:22px 24px">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px">
+          <div class="num">1</div>
+          <div style="font-size:27px;font-weight:700;color:var(--navy);line-height:1.2">主畫面</div>
+        </div>
+        <div style="font-size:17px;font-weight:700;color:var(--pw-d);letter-spacing:.08em;margin-bottom:7px">要解決的問題</div>
+        <p style="min-height:64px">檔案散在各自的電腦裡，找不到舊紀錄</p>
+        <div style="height:1px;background:var(--tint-b);margin:6px 0 18px"></div>
+        <ul class="bl">
+          <li>所有紀錄集中在一個清單</li>
+          <li>依「專案名稱」自動分組</li>
+          <li>一眼看出哪份還沒做完</li>
+        </ul>
+      </div>
+
+      <div class="card" style="padding:22px 24px">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px">
+          <div class="num">2</div>
+          <div style="font-size:27px;font-weight:700;color:var(--navy);line-height:1.2">編輯頁面</div>
+        </div>
+        <div style="font-size:17px;font-weight:700;color:var(--pw-d);letter-spacing:.08em;margin-bottom:7px">要解決的問題</div>
+        <p style="min-height:64px">照片跟位置對不起來</p>
+        <div style="height:1px;background:var(--tint-b);margin:6px 0 18px"></div>
+        <ul class="bl">
+          <li>左側：這份紀錄的所有照片</li>
+          <li>中間：平面圖，點一下標出拍攝位置</li>
+          <li>右側：照片編輯區，畫標記寫說明</li>
+        </ul>
+      </div>
+
+      <div class="card" style="padding:22px 24px">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:18px">
+          <div class="num">3</div>
+          <div style="font-size:27px;font-weight:700;color:var(--navy);line-height:1.2">匯出頁面</div>
+        </div>
+        <div style="font-size:17px;font-weight:700;color:var(--pw-d);letter-spacing:.08em;margin-bottom:7px">要解決的問題</div>
+        <p style="min-height:64px">手工排版太慢，而且每次都不一樣</p>
+        <div style="height:1px;background:var(--tint-b);margin:6px 0 18px"></div>
+        <ul class="bl">
+          <li>系統先自動排一版</li>
+          <li>不滿意就自己拖、自己調</li>
+          <li>直接列印成 PDF</li>
+        </ul>
+      </div>
+
+    </div>
+
+    <div class="fn" style="margin-top:auto">
+      這三個畫面就是整個工具的骨架 —— 先把它講清楚，AI 才知道你要的是「一套工作流程」，而不是一個泛用的照片管理程式。
+    </div>
+  </div>
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>06 / 14</span></div>
+</section>
+
+
+<!-- ============================== 07 · 做法 ============================== -->
+<section class="slide lg">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker">做 法</p>
+      <h1>先把大架構講給 AI 聽</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+  <div class="body vc">
+
+    <div class="g2" style="grid-template-columns:52% 1fr;gap:36px;height:auto;align-items:start">
+
+      <!-- LEFT — the one prompt -->
+      <div>
+        <div style="font-size:20px;font-weight:700;color:var(--pw-d);letter-spacing:.04em;margin-bottom:12px">
+          我一開始就只給了這一段話
+        </div>
+
+        <div style="background:#E9EDFA;border:1px solid var(--pw-l);border-left:5px solid var(--pw);
+                    border-radius:7px;padding:22px 26px">
+          <p style="font-size:21px;line-height:1.72;color:var(--navy);margin-bottom:13px">
+            「我要做一個網站，是圖說紀錄互動式網頁」
+          </p>
+          <p style="font-size:21px;line-height:1.78;color:var(--body)">
+            「我要這個網站的操作方式為：使用者匯入照片和平面圖，指定照片在平面圖的哪個位置並且輸入文字說明、畫線或簡單標記，之後就要一鍵自動產出報告，報告的格式大概會像是 平面圖在中間，旁邊是所有圖片，並且有線段連接至他在平面圖，指出它在平面中的位置，照片下面會有我先寫好的文字說明，紙張大小可能是A0-A4 。」
+          </p>
+        </div>
+
+        <p style="font-size:19px;line-height:1.7;color:var(--muted);margin-top:16px">
+          沒有畫面規格、沒有技術名詞、沒有分幾期做 —— 就是把「我要什麼」講完。
+        </p>
+      </div>
+
+      <!-- RIGHT — what that one paragraph actually carried -->
+      <div class="steps" style="gap:19px">
+        <div class="step">
+          <div class="num">1</div>
+          <div>
+            <h4>要做的是什麼(What)</h4>
+            <p>「一個網站、圖說記錄」—— 一句話就把範圍框住了</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">2</div>
+          <div>
+            <h4>從哪裡開始、到哪裡結束(Progress)</h4>
+            <p>匯入照片和平面圖 → 指定位置、寫說明、畫標記 → 一鍵產出報告</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num">3</div>
+          <div>
+            <h4>成品長什麼樣(End)</h4>
+            <p>A1 排版、平面圖在中間、照片在旁邊、線段連過去、照片下面是說明 —— 這段最關鍵</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="num" style="background:var(--pw-d)">4</div>
+          <div>
+            <h4 style="color:var(--pw-d)">沒講的：怎麼寫</h4>
+            <p>用什麼技術、檔案怎麼存、畫面怎麼切，全部沒提 —— 那是它的事</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="fn" style="margin-top:auto">
+      講得出「輸入什麼 → 中間做什麼 → 輸出長什麼樣」，就夠開始了。剩下的在下一頁一項一項補。
+    </div>
+  </div>
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>07 / 14</span></div>
+</section>
+
+
+<!-- ============================== 08 · 做法 · 二 ============================== -->
+<section class="slide lg">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker">做 法 · 二</p>
+      <h1>草稿出來以後，一次補一項</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+  <div class="body vc">
+
+    <div class="g3" style="gap:20px 22px;align-items:stretch">
+
+      <div class="card" style="padding:20px 22px">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+          <div class="num sm">1</div>
+          <div style="font-size:23px;font-weight:700;color:var(--navy);line-height:1.25">能跑的草稿</div>
+        </div>
+        <p style="color:var(--pw-d)">「先做出三個畫面，能互相切換、照片匯得進來就好。」</p>
+      </div>
+
+      <div class="card" style="padding:20px 22px">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+          <div class="num sm">2</div>
+          <div style="font-size:23px;font-weight:700;color:var(--navy);line-height:1.25">照片裁切</div>
+        </div>
+        <p style="color:var(--pw-d)">「照片要能在編輯區裡裁切，而且隨時可以還原成原圖。」</p>
+      </div>
+
+      <div class="card" style="padding:20px 22px">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+          <div class="num sm">3</div>
+          <div style="font-size:23px;font-weight:700;color:var(--navy);line-height:1.25">定位與方向</div>
+        </div>
+        <p style="color:var(--pw-d)">「在平面圖上點一下標出拍攝位置，再拖一下決定拍攝方向。」</p>
+      </div>
+
+      <div class="card" style="padding:20px 22px">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+          <div class="num sm">4</div>
+          <div style="font-size:23px;font-weight:700;color:var(--navy);line-height:1.25">比例尺</div>
+        </div>
+        <p style="color:var(--pw-d)">「平面圖要能量兩點的實際距離，出圖時可以用 1:100 這種真實比例。」</p>
+      </div>
+
+      <div class="card" style="padding:20px 22px">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+          <div class="num sm">5</div>
+          <div style="font-size:23px;font-weight:700;color:var(--navy);line-height:1.25">自由排版</div>
+        </div>
+        <p style="color:var(--pw-d)">「匯出頁的每一張照片都要能拖曳、縮放、互換位置、搬到別頁。」</p>
+      </div>
+
+      <div class="card" style="padding:20px 22px">
+        <div style="display:flex;align-items:center;gap:14px;margin-bottom:14px">
+          <div class="num sm">6</div>
+          <div style="font-size:23px;font-weight:700;color:var(--navy);line-height:1.25">圖框設定</div>
+        </div>
+        <p style="color:var(--pw-d)">「報告要有事務所的標題欄，名稱、Logo 和欄位可以自己換。」</p>
+      </div>
+
+    </div>
+
+    <div class="fn" style="margin-top:auto;display:grid;grid-template-columns:215px 1fr;
+                           gap:18px;align-items:center">
+      <b>四個心法</b>
+      <span>一次只講一件事，做好了再講下一件　·　每次做完先存一版，壞掉才有得退　·　講「我要的結果」，不要講「你應該怎麼寫」　·　跑不出來就把錯誤訊息整段貼回去給它</span>
+    </div>
+
+    <p style="font-size:20px;line-height:1.6;color:var(--muted);text-align:center;margin-top:20px">
+      功能不是一次想完的 —— 是實際拿去用了以後，才知道還缺什麼。
+    </p>
+  </div>
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>08 / 14</span></div>
+</section>
+
+<!-- ==================================================================
+     yj_part3 — slides 09 / 10 / 11  (圖說紀錄產生器 · 吳欣儒)
+     All three carry `.yj3` so the scoped block below cannot leak.
+     ZERO images: every "screenshot" is drawn chrome.
+     ================================================================== -->
+<style>
+/* ---------- scoped to .yj3 only ---------- */
+.yj3 .dvl{font-size:22px;font-weight:700;color:var(--pw-d);letter-spacing:.2em;
+          padding-bottom:7px;border-bottom:1px solid var(--tint-b);margin-bottom:15px}
+.yj3 .dvl+.steps{margin-bottom:0}
+
+/* status semantics — muted enough to sit next to real text */
+.yj3 .st{display:inline-block;font-size:15px;font-weight:700;line-height:1.2;
+         border-radius:20px;padding:3px 10px;border:1px solid;white-space:nowrap}
+.yj3 .st-ok{color:#2C6B4F;background:#EAF3EE;border-color:#C6DFD1}
+.yj3 .st-wn{color:#8A5B12;background:#FBF3E4;border-color:#E8D6AE}
+.yj3 .st-er{color:#A63D3A;background:#FBECEB;border-color:#EFCBC8}
+.yj3 .stt{font-size:15px;font-weight:700;line-height:1.2}
+.yj3 .stt.ok{color:#2C6B4F}
+.yj3 .stt.wn{color:#8A5B12}
+
+/* ---------- shared mock chrome ---------- */
+.yj3 .mtitle{font-size:19px;font-weight:700;color:var(--navy);letter-spacing:.02em;flex:none}
+.yj3 .srch{flex:1 1 auto;min-width:0;background:#fff;border:1px solid var(--tint-b);
+           border-radius:6px;padding:7px 12px;font-size:15px;color:#7A8199}
+.yj3 .grp{display:flex;align-items:baseline;justify-content:space-between;gap:14px;
+          border-top:1px solid var(--tint-b);padding-top:9px}
+.yj3 .grp b{font-size:18px;font-weight:700;color:var(--pw-d)}
+.yj3 .grp span{font-size:15px;color:var(--muted)}
+.yj3 .rcards{display:grid;grid-template-columns:repeat(3,1fr);gap:11px}
+.yj3 .rcard{background:#fff;border:1px solid var(--tint-b);border-radius:6px;padding:9px}
+.yj3 .rcard .th{height:58px;background:#EEF1F9;border:1px solid #E2E7F5;border-radius:4px}
+.yj3 .rcard .h{font-size:17px;font-weight:700;color:var(--ink);margin-top:8px;line-height:1.25}
+.yj3 .rcard .s{font-size:15px;color:var(--muted);margin-top:3px;line-height:1.3}
+.yj3 .rcard .st{margin-top:7px}
+
+/* ---------- slide 09 split ---------- */
+.yj3 .s9{display:grid;grid-template-columns:700px 1fr;gap:30px;align-items:start}
+
+/* ---------- slide 10 editor ---------- */
+.yj3 .ebar{gap:14px;flex-wrap:nowrap}
+.yj3 .back{font-size:17px;color:var(--pw-d);font-weight:700;white-space:nowrap;flex:none}
+.yj3 .saved{font-size:16px;color:#2C6B4F;font-weight:700;white-space:nowrap;flex:none}
+.yj3 .ws{display:grid;grid-template-columns:1.05fr 2.3fr 1.55fr;gap:12px;height:296px}
+.yj3 .ph{display:flex;align-items:center;justify-content:space-between;gap:10px;
+         flex:none;margin-bottom:9px}
+.yj3 .pt{font-size:17px;font-weight:700;color:var(--pw-d);white-space:nowrap}
+.yj3 .cg{display:flex;gap:7px}
+.yj3 .prow{display:flex;align-items:center;gap:11px;padding:6px 0}
+.yj3 .prow+.prow{border-top:1px solid #EEF0F7}
+.yj3 .ntile{width:48px;height:44px;flex:none;border:1px solid var(--tint-b);border-radius:5px;
+            background:#EEF1F9;color:var(--body);font-size:19px;font-weight:700;
+            display:flex;align-items:center;justify-content:center}
+.yj3 .ntile.sel{border:2px solid var(--pw);background:#E9EDFA;color:var(--pw-d)}
+.yj3 .pn{font-size:17px;color:var(--ink);line-height:1.25}
+.yj3 .tabs{display:flex;gap:8px;flex:none;margin-bottom:9px}
+.yj3 .glyphs{white-space:pre;font-size:20px;color:var(--pw-d);letter-spacing:.02em;
+             flex:none;margin-bottom:9px;line-height:1.3}
+.yj3 .pcap{font-size:15px;color:var(--muted);line-height:1.4;flex:none;margin-top:8px}
+.yj3 .bandline{font-size:19px;color:var(--body);line-height:1.6;
+               border-left:3px solid var(--pw-l);padding-left:14px}
+.yj3 .bandline b{color:var(--pw-d);font-weight:700}
+
+/* ---------- slide 11 report sheet ---------- */
+.yj3 .s11{display:grid;grid-template-columns:704px 1fr;gap:30px;align-items:start}
+.yj3 .prbtn{margin-left:auto;font-size:17px;padding:9px 18px}
+.yj3 .sheet{background:#fff;border:1px solid var(--tint-b);border-radius:5px;padding:12px}
+.yj3 .sgrid{position:relative;width:644px;margin:0 auto;
+            display:grid;grid-template-columns:176px 272px 176px;
+            grid-template-rows:118px 118px;gap:10px}
+.yj3 .ptile{background:#EEF1F9;border:1px solid var(--tint-b);border-radius:5px;position:relative}
+.yj3 .pb{position:absolute;left:8px;top:8px;width:24px;height:24px;border-radius:50%;
+         background:var(--pw);color:#fff;font-size:15px;font-weight:700;
+         display:flex;align-items:center;justify-content:center}
+.yj3 .plan{grid-column:2;grid-row:1 / span 2;background:#F4F6FC;
+           border:1px solid var(--tint-b);border-radius:5px}
+.yj3 .ovl{position:absolute;inset:0;pointer-events:none}
+.yj3 .ovl svg{position:absolute;left:0;top:0;display:block}
+.yj3 .ovl svg path{fill:none;stroke:var(--pw);stroke-width:1.6;
+                   stroke-dasharray:5 4;opacity:.85}
+.yj3 .mk{position:absolute;transform:translate(-50%,-50%);width:26px;height:26px;
+         border-radius:50%;background:var(--pw);color:#fff;font-size:15px;font-weight:700;
+         display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #fff}
+.yj3 .scl{position:absolute;transform:translate(-50%,-50%);font-size:15px;
+          color:var(--muted);letter-spacing:.1em;white-space:nowrap}
+.yj3 .tstrip{margin-top:10px;height:34px;border:1px solid var(--tint-b);border-radius:4px;
+             background:var(--tint);display:flex;align-items:center;justify-content:center;
+             font-size:15px;color:var(--body);letter-spacing:.02em}
+</style>
+
+
+<!-- ============================== 09 ============================== -->
+<section class="slide lg yj3">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker">成 品 · 一</p>
+      <h1>主畫面：專案與紀錄</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+
+  <div class="body vc">
+    <div class="s9">
+
+      <!-- ---- LEFT: mock app window ---- -->
+      <div class="mock">
+        <div class="mrow" style="gap:10px;flex-wrap:nowrap">
+          <b class="mtitle">圖說紀錄</b>
+          <div class="srch">搜尋專案、項目、紀錄者…</div>
+          <span class="chip">使用說明</span>
+          <span class="chip on">＋ 新增紀錄</span>
+        </div>
+
+        <div class="grp"><b>和平東路新建工程</b><span>3 份紀錄</span></div>
+        <div class="rcards">
+          <div class="rcard">
+            <div class="th"></div>
+            <div class="h">3F 泥作查驗</div>
+            <div class="s">08-05 · 12 張</div>
+            <div class="st st-ok">已完成定位</div>
+          </div>
+          <div class="rcard">
+            <div class="th"></div>
+            <div class="h">2F 水電放樣</div>
+            <div class="s">07-28 · 8 張</div>
+            <div class="st st-wn">2 張未定位</div>
+          </div>
+          <div class="rcard">
+            <div class="th"></div>
+            <div class="h">B1 開挖</div>
+            <div class="s">07-14 · 6 張</div>
+            <div class="st st-er">缺平面圖</div>
+          </div>
+        </div>
+
+        <div class="grp"><b>信義路大樓</b></div>
+        <div class="rcards">
+          <div class="rcard">
+            <div class="th"></div>
+            <div class="h">B1 機電查驗</div>
+            <div class="st st-ok">已完成定位</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ---- RIGHT: annotation ---- -->
+      <div>
+        <div class="dvl">初版</div>
+        <div class="steps">
+          <div class="step">
+            <div class="num">1</div>
+            <div><h4>狀態一眼看完</h4>
+              <p>缺平面圖、還有幾張沒定位、已完成 —— 用顏色標在卡片上</p></div>
+          </div>
+          <div class="step">
+            <div class="num">2</div>
+            <div><h4>複製整份當範本</h4>
+              <p>照片一起複製，例行查驗不用每次從零開始</p></div>
+          </div>
+          <div class="step">
+            <div class="num">3</div>
+            <div><h4>搜尋與排序</h4>
+              <p>專案、項目、紀錄者都能搜；四種排序方式可切換</p></div>
+          </div>
+        </div>
+
+        <div class="dvl" style="margin-top:24px">後來改的細節</div>
+        <div class="steps">
+          <div class="step">
+            <div class="num">1</div>
+            <div><h4>照專案分組</h4>
+              <p>填「專案名稱」就自動歸組，同一案場的歷次紀錄收在一起</p></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="fn" style="margin-top:18px">
+      照片直接拖進視窗就會自動開一份新紀錄 —— 現場回來第一件事，用拖的就開始了。
+    </div>
+  </div>
+
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>09 / 14</span></div>
+</section>
+
+
+<!-- ============================== 10 ============================== -->
+<section class="slide lg yj3">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker">成 品 · 二</p>
+      <h1>編輯畫面：選一張照片，點一下平面圖</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+
+  <div class="body vc">
+
+    <!-- ---- full-width mock editor ---- -->
+    <div class="mock">
+      <div class="mrow ebar">
+        <span class="back">‹ 全部紀錄</span>
+        <div class="fld"><span>專案名稱</span><b>和平東路新建工程</b></div>
+        <div class="fld"><span>紀錄項目</span><b>3F 泥作查驗</b></div>
+        <div class="fld"><span>日期</span><b>2026-08-05</b></div>
+        <div class="fld"><span>紀錄者</span><b>王大明</b></div>
+        <span class="saved" style="margin-left:auto">已儲存</span>
+        <span class="chip">匯出紀錄檔</span>
+        <span class="chip on">產生報告</span>
+      </div>
+
+      <div class="ws">
+
+        <!-- LEFT pane — photo list -->
+        <div class="pane">
+          <div class="ph"><b class="pt">照片 12</b><span class="chip">＋ 匯入照片</span></div>
+          <div class="prow">
+            <div class="ntile sel">1</div>
+            <div><div class="pn">斜向埋管</div><div class="stt ok">已定位</div></div>
+          </div>
+          <div class="prow">
+            <div class="ntile">2</div>
+            <div><div class="pn">水槽排水偏位</div><div class="stt wn">未定位</div></div>
+          </div>
+          <div class="prow">
+            <div class="ntile">3</div>
+            <div><div class="pn">馬桶側距不足</div><div class="stt ok">已定位</div></div>
+          </div>
+        </div>
+
+        <!-- CENTRE pane — floor plan -->
+        <div class="pane">
+          <div class="ph"><b class="pt">平面圖</b>
+            <span class="cg">
+              <span class="chip">符合</span>
+              <span class="chip">比例尺</span>
+              <span class="chip">裁切</span>
+              <span class="chip">＋ 匯入</span>
+            </span>
+          </div>
+          <div class="tabs">
+            <span class="chip">1F</span>
+            <span class="chip">2F</span>
+            <span class="chip on">3F</span>
+          </div>
+          <div class="canvas" style="flex:1 1 auto;min-height:120px">
+            <div class="pin on" style="left:33%;top:35%">1</div>
+            <div class="pin"    style="left:72%;top:60%">2</div>
+            <div class="pin"    style="left:48%;top:78%">3</div>
+          </div>
+        </div>
+
+        <!-- RIGHT pane — photo annotation -->
+        <div class="pane">
+          <div class="ph"><b class="pt">照片標註</b><span class="chip">裁切</span></div>
+          <div class="glyphs">✥  ✎  ╱  ➚  ▭  ◯  字</div>
+          <div class="canvas" style="flex:1 1 auto;min-height:96px;background:#EDEFF6">
+            <div style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+                        width:44%;height:52%;border:2px solid #B96F6C;border-radius:50%"></div>
+          </div>
+          <div class="pcap">說明：3F 東側外牆磁磚空鼓約 0.6 m²…</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="bandline" style="margin-top:18px"><b>初版</b>　三大版面樣式、照片標記功能</div>
+    <div class="bandline" style="margin-top:10px"><b>後來改的細節</b>　比例尺、裁切功能、頁面放大縮小</div>
+
+    <div class="fn" style="margin-top:16px">
+      照片和位置，就是在這一頁被綁在一起的 —— 這一步做完，下一頁的報告才排得出來。
+    </div>
+  </div>
+
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>10 / 14</span></div>
+</section>
+
+
+<!-- ============================== 11 ============================== -->
+<section class="slide lg yj3">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker">成 品 · 三</p>
+      <h1>產生報告：自動排版，也能自己拖</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+
+  <div class="body vc">
+    <div class="s11">
+
+      <!-- ---- LEFT: mock A3 report sheet ---- -->
+      <div>
+        <div class="mock">
+          <div class="mrow" style="gap:12px;flex-wrap:nowrap">
+            <div class="fld"><span>紙張</span><b>A3 ▾</b></div>
+            <div class="fld"><span>方向</span><b>橫式 ▾</b></div>
+            <div class="fld"><span>每張圖面</span><b>8 張 ▾</b></div>
+            <div class="fld"><span>比例</span><b>1:100 ▾</b></div>
+            <span class="chip on prbtn">列印 / 存成 PDF</span>
+          </div>
+
+          <div class="sheet">
+            <div class="sgrid">
+              <div class="ptile"><span class="pb">1</span></div>
+              <div class="plan"></div>
+              <div class="ptile"><span class="pb">2</span></div>
+              <div class="ptile"><span class="pb">3</span></div>
+              <div class="ptile"><span class="pb">4</span></div>
+
+              <!-- leader lines + plan markers share one px-exact overlay -->
+              <div class="ovl">
+                <svg width="644" height="246" viewBox="0 0 644 246" aria-hidden="true">
+                  <path d="M176 59 L262 69"/>
+                  <path d="M468 59 L382 108"/>
+                  <path d="M176 187 L265 177"/>
+                  <path d="M468 187 L371 204"/>
+                </svg>
+                <span class="mk" style="left:262px;top:69px">1</span>
+                <span class="mk" style="left:382px;top:108px">2</span>
+                <span class="mk" style="left:265px;top:177px">3</span>
+                <span class="mk" style="left:371px;top:204px">4</span>
+                <span class="scl" style="left:322px;top:232px">SCALE 1:100</span>
+              </div>
             </div>
-            <svg id="planOverlay" class="planOverlay" xmlns="http://www.w3.org/2000/svg"></svg>
+
+            <div class="tstrip">○○建築師事務所　|　和平東路新建工程　|　3F 泥作查驗　|　2026-08-05　|　1 / 3</div>
           </div>
         </div>
-        <div id="planEmpty" class="emptyHint big">
-          <p><strong>尚未載入平面圖</strong><br>按右上「＋ 匯入平面圖」或把檔案拖進來<br><span class="hint">支援影像、PDF · 可匯入多張（各樓層分頁顯示）</span></p>
-        </div>
-        <div id="planTip" class="planTip">選一張照片，再點平面圖標記位置</div>
-        <div id="calDlg" class="calDlg" hidden>
-          <div class="cdHead">
-            <strong>比例尺設定</strong>
-            <span class="hint">告訴系統原圖的比例與紙張，報告就能以 1:100 等真實比例放置平面圖</span>
+
+        <p class="mcap" style="margin-top:14px">照片、引線、平面圖、標題欄 —— 一頁到位</p>
+      </div>
+
+      <!-- ---- RIGHT: annotation ---- -->
+      <div>
+        <div class="dvl">初版</div>
+        <div class="steps">
+          <div class="step">
+            <div class="num">1</div>
+            <div><h4>版面是算出來的</h4>
+              <p>程式試算「每欄幾張、上下放不放、欄寬多少」的各種組合，挑留白最少的那一種</p></div>
           </div>
-          <div id="calState" class="cdState"></div>
-          <label class="cdField">原圖比例　1 :
-            <input id="calN" type="number" min="1" step="1" placeholder="100">
-          </label>
-          <label class="cdField">原圖紙張
-            <select id="calPaper"></select>
-          </label>
-          <label class="cdField" id="calCustomW" hidden>紙張寬度
-            <input id="calCustomWInput" type="number" min="1" step="1" placeholder="594">
-            <span class="unit">mm</span>
-          </label>
-          <div class="cdFoot">
-            <button id="calDlgPick" class="btn tiny ghost" title="圖檔被裁切或另外縮放過、不確定紙張大小時，改在圖上點兩點量距離">改用兩點量測</button>
-            <span class="fdSpacer"></span>
-            <button id="calDlgClear" class="btn tiny ghost danger">清除</button>
-            <button id="calDlgClose" class="btn tiny ghost">關閉</button>
-            <button id="calDlgApply" class="btn tiny primary">套用</button>
+          <div class="step">
+            <div class="num">2</div>
+            <div><h4>引線自動連、自動重連</h4>
+              <p>照片連到平面圖上自己的位置點；照片移動了，引線跟著走</p></div>
           </div>
         </div>
-        <div id="planCalBar" class="cropBar" hidden>
-          <span class="cropMsg" id="calMsg">在平面圖上點出一段已知距離的兩端（例如一道牆或尺寸線）</span>
-          <label class="inlineField">實際距離
-            <input id="calDist" type="number" min="1" step="1" placeholder="8000" disabled>
-            <span class="unit">mm</span>
-          </label>
-          <button id="calCancel" class="btn tiny ghost">取消</button>
-          <button id="calApply" class="btn tiny primary" disabled>套用</button>
-        </div>
-        <div id="planCropBar" class="cropBar" hidden>
-          <span class="cropMsg">拖曳框選要保留的範圍</span>
-          <button id="planCropReset" class="btn tiny ghost">全圖</button>
-          <button id="planCropCancel" class="btn tiny ghost">取消</button>
-          <button id="planCropApply" class="btn tiny primary">套用裁切</button>
-        </div>
-      </div>
 
-      <div class="paneFoot planFoot">
-        <span class="hint">滾輪縮放 · 拖曳空白處平移 · 拖曳圓點移動位置 · 拖曳圓點外的把手調整拍攝方向</span>
-      </div>
-    </section>
-
-    <div class="resizer" id="resizeR" title="拖曳調整寬度（雙擊還原）"></div>
-
-    <!-- ─── 右：照片編輯 ─── -->
-    <section class="pane paneEdit">
-      <div class="paneHead">
-        <h2 id="editTitle">照片標註</h2>
-        <div class="headTools">
-          <button id="btnCropPhoto" class="btn small ghost">裁切</button>
-          <button id="btnPrev" class="iconBtn" title="上一張">‹</button>
-          <button id="btnNext" class="iconBtn" title="下一張">›</button>
-        </div>
-      </div>
-
-      <div id="annoToolbar" class="annoToolbar">
-        <div class="toolGroup" role="group" aria-label="標註工具">
-          <button class="toolBtn" data-tool="select" title="選取 / 移動 (V)">
-            <svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.6L10.4 19z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-          </button>
-          <button class="toolBtn" data-tool="pen" title="畫筆 (P)">
-            <svg viewBox="0 0 24 24"><path d="M4 20l3.5-1 11-11-2.5-2.5-11 11z M15 6.5L17.5 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-          </button>
-          <button class="toolBtn" data-tool="line" title="直線 (L)">
-            <svg viewBox="0 0 24 24"><path d="M4 20L20 4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
-          </button>
-          <button class="toolBtn" data-tool="arrow" title="箭頭 (A)">
-            <svg viewBox="0 0 24 24"><path d="M4 20L19 5 M11 5h8v8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
-          </button>
-          <button class="toolBtn" data-tool="rect" title="矩形 (R)">
-            <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
-          </button>
-          <button class="toolBtn" data-tool="ellipse" title="橢圓 (O)">
-            <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="6" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
-          </button>
-          <button class="toolBtn" data-tool="text" title="文字 (T)">
-            <svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M9 19h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
-          </button>
-        </div>
-
-        <div class="toolGroup swatches" id="colorSwatches" role="group" aria-label="顏色"></div>
-
-        <div class="toolGroup" role="group" aria-label="線寬">
-          <button class="toolBtn wBtn" data-w="4"  title="細"><span class="wDot" style="height:2px"></span></button>
-          <button class="toolBtn wBtn" data-w="8"  title="中"><span class="wDot" style="height:4px"></span></button>
-          <button class="toolBtn wBtn" data-w="14" title="粗"><span class="wDot" style="height:7px"></span></button>
-        </div>
-
-        <div class="toolGroup">
-          <button id="btnUndo" class="btn small ghost" title="復原 (Ctrl+Z)">復原</button>
-          <button id="btnClearAnno" class="btn small ghost" title="清除此張全部標註">清除</button>
-        </div>
-      </div>
-
-      <div id="editStage" class="editStage">
-        <div id="photoWrap" class="photoWrap">
-          <div id="photoFrame" class="cropFrame">
-            <img id="photoImg" alt="" draggable="false">
+        <div class="dvl" style="margin-top:22px">後來改的細節</div>
+        <div class="steps">
+          <div class="step">
+            <div class="num">3</div>
+            <div><h4>不合意就自己拖</h4>
+              <p>拖曳、縮放、兩張互換、搬到別頁，還有對齊吸附與 Ctrl+Z；排壞了按「全部重排」回到自動</p></div>
           </div>
-          <svg id="photoOverlay" class="photoOverlay" xmlns="http://www.w3.org/2000/svg"></svg>
-        </div>
-        <div id="editEmpty" class="emptyHint big"><p>從左側選一張照片開始標註</p></div>
-        <div id="photoCropBar" class="cropBar" hidden>
-          <span class="cropMsg">拖曳框選要保留的範圍</span>
-          <button id="photoCropReset" class="btn tiny ghost">全圖</button>
-          <button id="photoCropCancel" class="btn tiny ghost">取消</button>
-          <button id="photoCropApply" class="btn tiny primary">套用裁切</button>
+          <div class="step">
+            <div class="num">4</div>
+            <div><h4>出圖是真的能用的圖</h4>
+              <p>A0–A3、可鎖 1:100 真實比例、印上事務所圖框，直接列印或存成 PDF</p></div>
+          </div>
         </div>
       </div>
 
-      <div class="captionBox">
-        <div class="captionHead">
-          <label for="capText">說明文字</label>
-          <span id="capCounter" class="hint">0</span>
-        </div>
-        <textarea id="capText" rows="3" placeholder="例：3F 東側外牆，磁磚空鼓約 0.6 m²，已標示待修範圍。" disabled></textarea>
-        <div class="captionRow">
-          <label class="inlineField">拍攝方向
-            <input id="dirAngle" type="number" min="0" max="359" step="5" placeholder="—" disabled>
-            <span class="unit">°</span>
-          </label>
-          <button id="btnClearDir" class="btn tiny ghost" disabled>清除方向</button>
-          <button id="btnClearPin" class="btn tiny ghost" disabled>清除位置</button>
-          <button id="btnDelPhoto" class="btn tiny ghost danger" disabled>刪除照片</button>
-        </div>
-      </div>
-    </section>
-  </main>
-</div>
-
-<!-- ══════════════════ 報告視窗 ══════════════════ -->
-<div id="reportModal" class="modal" hidden>
-  <div class="reportBar">
-    <div class="reportBarLeft">
-      <strong>報告預覽</strong>
-      <span id="sheetInfo" class="hint"></span>
-    </div>
-
-    <div class="reportBarMid">
-      <label>紙張
-        <select id="optPaper">
-          <option value="A0">A0（1189×841）</option>
-          <option value="A1">A1（841×594）</option>
-          <option value="A2">A2（594×420）</option>
-          <option value="A3" selected>A3（420×297）</option>
-        </select>
-      </label>
-      <label>方向
-        <select id="optOrient">
-          <option value="landscape">橫式</option>
-          <option value="portrait">直式</option>
-        </select>
-      </label>
-      <label>每張圖面
-        <select id="optPerSheet">
-          <option value="4">4 張照片</option>
-          <option value="6">6 張照片</option>
-          <option value="8" selected>8 張照片</option>
-          <option value="10">10 張照片</option>
-          <option value="12">12 張照片</option>
-          <option value="14">14 張照片</option>
-        </select>
-      </label>
-      <label>版面
-        <select id="optEdges">
-          <option value="auto" selected>自動（填滿版面）</option>
-          <option value="sides">只放兩側</option>
-          <option value="free">自由排版</option>
-        </select>
-      </label>
-      <label>比例
-        <select id="optScale">
-          <option value="">自動大小</option>
-          <option value="50">1:50</option>
-          <option value="75">1:75</option>
-          <option value="100">1:100</option>
-          <option value="150">1:150</option>
-          <option value="200">1:200</option>
-          <option value="250">1:250</option>
-          <option value="300">1:300</option>
-          <option value="500">1:500</option>
-        </select>
-      </label>
-      <label>字級
-        <select id="optFont">
-          <option value="0.8">特小</option>
-          <option value="0.9">小</option>
-          <option value="1" selected>標準</option>
-          <option value="1.15">大</option>
-          <option value="1.3">特大</option>
-          <option value="1.5">超大</option>
-        </select>
-      </label>
-      <label class="chk"><input id="optLeaders" type="checkbox" checked> 引線</label>
-      <label class="chk"><input id="optGhost" type="checkbox" checked> 顯示其他頁位置</label>
-    </div>
-
-    <div class="reportBarRight">
-      <button id="btnFrame" class="btn ghost" title="事務所圖框：名稱、Logo、額外標題欄位">圖框</button>
-      <button id="btnPrint" class="btn primary">列印 / 存成 PDF</button>
-      <button id="btnCloseReport" class="btn ghost">關閉</button>
     </div>
   </div>
 
-  <!-- 圖框設定面板 -->
-  <div id="frameDlg" class="frameDlg" hidden>
-    <div class="fdHead">
-      <strong>圖框設定</strong>
-      <span class="hint">套用在這份紀錄的報告標題欄；可設為事務所預設</span>
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>11 / 14</span></div>
+</section>
+
+<!-- ============================== 12 · 踩過的坑 ============================== -->
+<section class="slide lg">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker" style="letter-spacing:.16em">踩 過 的 坑</p>
+      <h1>遇到的問題與解決方式</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+  <div class="body vc">
+
+    <div class="g2 hug" style="height:auto;align-content:start;gap:28px;margin-top:8px">
+
+      <div class="card" style="padding:30px 32px">
+        <div style="display:flex;align-items:center;gap:18px;margin-bottom:22px">
+          <div class="num">1</div>
+          <h3 style="margin:0;font-size:25px;color:var(--navy);line-height:1.3">一次講太多、講太細</h3>
+        </div>
+        <p style="font-size:19px;font-weight:700;color:var(--pw-d);letter-spacing:.04em;
+                  line-height:1.3;margin-bottom:9px">當時的狀況</p>
+        <p style="font-size:20px;color:var(--body);line-height:1.75">一開始就把想到的細節一口氣全講完 —— 結果它每一項都做一點、每一項都不完整，改了這裡又動到那裡，來回很多次還是不到位。</p>
+        <p style="font-size:19px;font-weight:700;color:var(--pw-d);letter-spacing:.04em;
+                  line-height:1.3;margin:24px 0 9px">怎麼解</p>
+        <p style="font-size:20px;color:var(--body);line-height:1.75">先講大架構：這是什麼、給誰用、有哪三個畫面。請它先生成一版能跑的初版，細節之後再一項一項修。</p>
+      </div>
+
+      <div class="card" style="padding:30px 32px">
+        <div style="display:flex;align-items:center;gap:18px;margin-bottom:22px">
+          <div class="num">2</div>
+          <h3 style="margin:0;font-size:25px;color:var(--navy);line-height:1.3">AI 自己多加了功能</h3>
+        </div>
+        <p style="font-size:19px;font-weight:700;color:var(--pw-d);letter-spacing:.04em;
+                  line-height:1.3;margin-bottom:9px">當時的狀況</p>
+        <p style="font-size:20px;color:var(--body);line-height:1.75">請它加「照片互換」的功能。功能是做出來了，但每換一次，庫存區就自己多出兩張一模一樣的照片 —— 它做了我沒有要求的事。</p>
+        <p style="font-size:19px;font-weight:700;color:var(--pw-d);letter-spacing:.04em;
+                  line-height:1.3;margin:24px 0 9px">怎麼解</p>
+        <p style="font-size:20px;color:var(--body);line-height:1.75">每次請它加完功能，一定要自己實際操作一遍、檢查一遍。不只是抓這種多做的東西，順手也會看到還可以再優化的地方。</p>
+      </div>
+
     </div>
-    <label class="fdField">事務所名稱
-      <input id="frOffice" type="text" placeholder="○○建築師事務所">
-    </label>
-    <div class="fdField">
-      <span>Logo</span>
-      <div class="fdLogoRow">
-        <button id="frLogoPick" class="btn small ghost">選擇圖檔</button>
-        <img id="frLogoPrev" class="fdLogoPrev" alt="" hidden>
-        <button id="frLogoClear" class="btn tiny ghost danger" hidden>移除</button>
+
+    <div class="fn" style="margin-top:28px;display:grid;grid-template-columns:215px 1fr;
+                           gap:24px;align-items:baseline">
+      <b>兩題的共同點</b>
+      <span>AI 很聽話，但它不會替你判斷「你沒說的那些」—— 講清楚範圍、做完馬上自己跑一遍，是最省時間的兩件事。</span>
+    </div>
+
+  </div>
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>12 / 14</span></div>
+</section>
+
+
+<!-- ============================== 13 · 結語 ============================== -->
+<section class="slide lg">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker" style="letter-spacing:.22em">結 語</p>
+      <h1>如果你也想做一個</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+  <div class="body vc">
+
+    <div class="steps" style="gap:28px;margin-top:10px">
+      <div class="step sm" style="grid-template-columns:30px 1fr;gap:18px">
+        <div class="num sm">1</div>
+        <div>
+          <h4 style="font-size:25px;color:var(--navy);line-height:1.3;margin-bottom:7px">先把流程講清楚，再開口</h4>
+          <p style="font-size:20px;color:var(--body);line-height:1.7">你講不清楚的地方，AI 也做不出來。難的從來不是程式，是「我每天到底在做什麼」。</p>
+        </div>
+      </div>
+      <div class="step sm" style="grid-template-columns:30px 1fr;gap:18px">
+        <div class="num sm">2</div>
+        <div>
+          <h4 style="font-size:25px;color:var(--navy);line-height:1.3;margin-bottom:7px">從一版能跑的草稿開始</h4>
+          <p style="font-size:20px;color:var(--body);line-height:1.7">不要一次要一個完美的東西。先能跑，再變好 —— 有東西可以點，討論才有對象。</p>
+        </div>
+      </div>
+      <div class="step sm" style="grid-template-columns:30px 1fr;gap:18px">
+        <div class="num sm">3</div>
+        <div>
+          <h4 style="font-size:25px;color:var(--navy);line-height:1.3;margin-bottom:7px">一次一件事，做完先存一版</h4>
+          <p style="font-size:20px;color:var(--body);line-height:1.7">每加一個功能就存一版，壞掉才有得退。跑不出來就把錯誤訊息整段貼回去。</p>
+        </div>
       </div>
     </div>
-    <div class="fdField">
-      <span>額外標題欄位（印在日期前面）</span>
-      <div id="frExtras" class="fdExtras"></div>
-      <button id="frAddExtra" class="btn tiny ghost">＋ 新增欄位</button>
+
+    <div style="margin-top:44px;background:#E9EDFA;border:1px solid var(--pw-l);
+                border-radius:8px;padding:30px 36px;text-align:center">
+      <p style="font-size:38px;font-weight:700;color:var(--pw-d);line-height:1.35;
+                letter-spacing:.01em">真正花時間的不是寫程式，是想清楚自己每天在做什麼。</p>
     </div>
-    <div class="fdFoot">
-      <label class="chk"><input id="frDefault" type="checkbox"> 設為新紀錄的預設圖框</label>
-      <span class="fdSpacer"></span>
-      <button id="frClose" class="btn small ghost">關閉</button>
-      <button id="frSave" class="btn small primary">套用</button>
+
+    <p style="margin-top:24px;text-align:center;font-size:20px;color:var(--muted);
+              letter-spacing:.04em;line-height:1.5">下一頁留了三題小練習，給想回去自己動手的人 →</p>
+
+  </div>
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>13 / 14</span></div>
+</section>
+
+
+<!-- ============================== 14 · 想自己試試看（收尾） ============================== -->
+<section class="slide lg">
+  <div class="band"></div>
+  <div class="hd">
+    <div><p class="kicker" style="letter-spacing:.16em">想 自 己 試 試 看</p>
+      <h1>三題小練習，讓 AI 幫你加功能</h1></div>
+    <div class="brand">THINKLAB<br>2026</div>
+  </div>
+  <div class="body vc">
+
+    <p style="font-size:19px;color:var(--muted);line-height:1.55;margin-bottom:10px">改動小、結果馬上看得到。把「複製這句」整段貼給 AI，跑完照驗收條件自己檢查。</p>
+
+    <div class="g3 hug" style="height:auto;align-content:start;gap:16px">
+
+      <div class="card" style="padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div class="num sm">1</div>
+          <h3 style="margin:0;font-size:21px;color:var(--navy);line-height:1.3">常用詞快選</h3>
+          <span class="chip" style="margin-left:auto;font-size:15px;padding:4px 10px;
+                color:var(--pw-d);border-color:var(--pw-l);font-weight:700">約 15 分</span>
+        </div>
+        <p style="font-size:19px;color:var(--body);line-height:1.55;min-height:59px;
+                  margin-bottom:9px">工地說明來去就那幾句。做一排按鈕，點一下就填進去。</p>
+        <p style="font-size:17px;font-weight:700;color:var(--pw-d);letter-spacing:.03em;
+                  line-height:1.3;margin-bottom:5px">複製這句貼給 AI</p>
+        <p style="font-size:19px;color:var(--navy);line-height:1.5;min-height:140px;
+                  background:#fff;border:1px solid var(--tint-b);border-left:3px solid var(--pw);
+                  border-radius:6px;padding:12px 15px;margin-bottom:9px">「在說明文字那一欄上面，幫我加幾個常用詞的按鈕：磁磚空鼓、滲水痕跡、鋼筋外露、粉刷不平、已完成修補。點一下就把那個詞加到說明文字裡。」</p>
+        <p style="font-size:17px;font-weight:700;color:var(--pw-d);letter-spacing:.03em;
+                  line-height:1.3;margin-bottom:5px">驗收</p>
+        <p style="font-size:19px;color:var(--body);line-height:1.55">選一張照片，連按兩個詞 → 兩段字都加進去了，重新整理網頁還在。</p>
+      </div>
+
+      <div class="card" style="padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div class="num sm">2</div>
+          <h3 style="margin:0;font-size:21px;color:var(--navy);line-height:1.3">只看未定位</h3>
+          <span class="chip" style="margin-left:auto;font-size:15px;padding:4px 10px;
+                color:var(--pw-d);border-color:var(--pw-l);font-weight:700">約 20 分</span>
+        </div>
+        <p style="font-size:19px;color:var(--body);line-height:1.55;min-height:59px;
+                  margin-bottom:9px">照片一多就找不到還沒標位置的那幾張。加個篩選開關。</p>
+        <p style="font-size:17px;font-weight:700;color:var(--pw-d);letter-spacing:.03em;
+                  line-height:1.3;margin-bottom:5px">複製這句貼給 AI</p>
+        <p style="font-size:19px;color:var(--navy);line-height:1.5;min-height:140px;
+                  background:#fff;border:1px solid var(--tint-b);border-left:3px solid var(--pw);
+                  border-radius:6px;padding:12px 15px;margin-bottom:9px">「左邊照片清單上面，幫我加一個「只看還沒定位的照片」的開關。打開就只顯示還沒在平面圖上點過位置的照片，關掉就全部顯示。」</p>
+        <p style="font-size:17px;font-weight:700;color:var(--pw-d);letter-spacing:.03em;
+                  line-height:1.3;margin-bottom:5px">驗收</p>
+        <p style="font-size:19px;color:var(--body);line-height:1.55">匯入 5 張、其中 2 張標好位置 → 開關切一下，清單在 3 張和 5 張之間變。</p>
+      </div>
+
+      <div class="card" style="padding:14px 16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+          <div class="num sm">3</div>
+          <h3 style="margin:0;font-size:21px;color:var(--navy);line-height:1.3">匯出照片清單</h3>
+          <span class="chip" style="margin-left:auto;font-size:15px;padding:4px 10px;
+                color:var(--pw-d);border-color:var(--pw-l);font-weight:700">約 25 分</span>
+        </div>
+        <p style="font-size:19px;color:var(--body);line-height:1.55;min-height:59px;
+                  margin-bottom:9px">缺失追蹤表、估價單都要這張清單。讓程式直接吐出來。</p>
+        <p style="font-size:17px;font-weight:700;color:var(--pw-d);letter-spacing:.03em;
+                  line-height:1.3;margin-bottom:5px">複製這句貼給 AI</p>
+        <p style="font-size:19px;color:var(--navy);line-height:1.5;min-height:140px;
+                  background:#fff;border:1px solid var(--tint-b);border-left:3px solid var(--pw);
+                  border-radius:6px;padding:12px 15px;margin-bottom:9px">「幫我加一個「匯出清單」按鈕，把這份紀錄的照片做成一張表：照片編號、說明文字、在哪一張平面圖、有沒有定位。按了就下載，Excel 要打得開。」</p>
+        <p style="font-size:17px;font-weight:700;color:var(--pw-d);letter-spacing:.03em;
+                  line-height:1.3;margin-bottom:5px">驗收</p>
+        <p style="font-size:19px;color:var(--body);line-height:1.55">下載的檔案用 Excel 打開 → 每一欄都對得整齊，說明文字沒有跑掉。</p>
+      </div>
+
     </div>
+
+    <div class="fn" style="margin-top:14px;padding:12px 20px;display:grid;
+                           grid-template-columns:215px 1fr;gap:24px;align-items:baseline">
+      <b>三題都不會弄壞東西</b>
+      <span>刻意避開排版演算法（那部分一改就要重跑整輪版面驗證）。沒把握就從第 3 題開始 —— 純讀取，不會動到現有資料。</span>
+    </div>
+
+    <p style="margin-top:12px;text-align:center;font-size:28px;font-weight:700;
+              color:var(--pw);letter-spacing:.06em;line-height:1.25">謝謝　·　Q &amp; A</p>
+
   </div>
+  <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>14 / 14</span></div>
+</section>
 
-  <!-- 自由排版 -->
-  <div id="freeBar" class="manualBar" hidden>
-    <span class="mbLabel">自由排版</span>
-    <span class="mbHint">拖曳移動 · 拖到另一張照片上互換 · 右下角把手縮放 · 方向鍵微調（Shift 5mm）· Alt 暫時不吸附 · Ctrl+Z 復原 / Ctrl+Y 重做</span>
-    <label class="chk mbChk"><input id="optSnap" type="checkbox" checked> 對齊吸附</label>
-    <button id="btnResetFree" class="btn tiny ghost">全部重排</button>
-  </div>
 
-  <div id="reportScroll" class="reportScroll">
-    <div id="sheets" class="sheets"></div>
-  </div>
-</div>
 
-<!-- 隱藏的檔案輸入 -->
-<input id="filePhotos" type="file" accept="image/*,.pdf" multiple hidden>
-<input id="filePlan"   type="file" accept="image/*,.pdf" hidden>
-<input id="fileProj"   type="file" accept=".sitelog,.json,application/json" hidden>
-<input id="fileLogo"   type="file" accept="image/*" hidden>
+</div></div>
 
-<div id="dropVeil" class="dropVeil" hidden><div id="dropVeilMsg">放開以匯入</div></div>
+<div id="hint">← → 換頁 ｜ O 總覽 ｜ F 全螢幕</div>
+<div id="ov"><div id="ovg"></div></div>
 
-<div id="toast" class="toast" hidden></div>
+<script>
+(function(){
+  var stage    = document.getElementById('stage'),
+      slides   = Array.prototype.slice.call(stage.querySelectorAll('.slide')),
+      bar      = document.getElementById('bar'),
+      ov       = document.getElementById('ov'),
+      ovg      = document.getElementById('ovg'),
+      i        = 0,
+      QA       = /(\?|&)qa\b/.test(location.search),
+      PRINT    = /(\?|&)print\b/.test(location.search);
 
-<script src="js/util.js"></script>
-<script src="js/db.js"></script>
-<script src="js/state.js"></script>
-<script src="js/crop.js"></script>
-<script src="js/convert.js"></script>
-<script src="js/plan.js"></script>
-<script src="js/photo.js"></script>
-<script src="js/layout.js"></script>
-<script src="js/report.js"></script>
-<script src="js/arrange.js"></script>
-<script src="js/home.js"></script>
-<script src="js/sample.js"></script>
-<script src="js/app.js"></script>
+  /* ---- the 27 tools of THINKLAB XOS (slides 01 / 05 / 14) ---- */
+  var TOOLS = [
+    {n:'01',t:'DrawReview',c:'col',d:'圖面標註審閱'},{n:'02',t:'Gitea',c:'col',d:'內部版本控管'},
+    {n:'03',t:'Speckle',c:'col',d:'BIM 模型串流'},{n:'04',t:'PDF→DXF',c:'cad',d:'圖面向量化'},
+    {n:'05',t:'AI Batch',c:'ai',d:'AI 批次算圖'},{n:'06',t:'地籍→DXF',c:'cad',d:'坐標展圖'},
+    {n:'07',t:'KHH UBA',c:'chk',d:'高雄分區查詢'},{n:'08',t:'3D Tiles',c:'cad',d:'3D 圖磚下載'},
+    {n:'09',t:'綠建築',c:'chk',d:'EEWH 五大指標'},{n:'10',t:'DOB Pusher',c:'ai',d:'自動送件'},
+    {n:'11',t:'DOB PDF',c:'cad',d:'浮水印修正'},{n:'12',t:'LandIQ',c:'chk',m:1,d:'地號全項查詢'},
+    {n:'13',t:'DPM',c:'col',m:1,d:'請款・工時'},{n:'14',t:'石材拼貼',c:'cad',d:'書本對花模擬'},
+    {n:'15',t:'DYA 坪效',c:'ai',m:1,d:'坪效・成本・毛利'},{n:'16',t:'VR TOUR',c:'col',m:1,d:'360 全景導覽'},
+    {n:'17',t:'街景→HDRI',c:'cad',d:'環境貼圖產生'},{n:'18',t:'法規知識庫',c:'chk',m:1,d:'293 篇法規函釋'},
+    {n:'19',t:'建照繪製',c:'cad',d:'送審流程管理'},{n:'20',t:'建照面積',c:'ai',d:'樓地板自動計算'},
+    {n:'21',t:'REM',c:'chk',m:1,d:'實價・市場分析'},{n:'22',t:'Activity',c:'col',d:'電腦活動監測'},
+    {n:'23',t:'STANDARDS',c:'cad',m:1,d:'BIM 標準治理'},{n:'24',t:'FAMILY',c:'cad',m:1,d:'Revit 族群庫'},
+    {n:'25',t:'siteVR',c:'col',d:'基地 360 紀錄'},{n:'26',t:'XHOUSING',c:'chk',d:'住宅戶型庫'},
+    {n:'27',t:'TWM',c:'chk',d:'選址機會地圖'}
+  ];
+  function buildGrid(el, mini){
+    if(!el) return;
+    TOOLS.forEach(function(o){
+      var d = document.createElement('div');
+      d.className = 'mcell t-' + o.c;
+      d.innerHTML = mini
+        ? '<div class="mn">' + o.n + '</div>' + (o.m ? '<div class="mcp">◈</div>' : '')
+        : '<div class="mn">' + o.n + (o.m ? ' <span class="mcp">◈ MCP</span>' : '') + '</div>' +
+          '<div><div class="mt">' + o.t + '</div><div class="md">' + o.d + '</div></div>';
+      el.appendChild(d);
+    });
+  }
+  buildGrid(document.getElementById('hubgrid'), false);
+  buildGrid(document.getElementById('titlegrid'), true);
+  buildGrid(document.getElementById('endgrid'), true);
+
+  /* ---- the header band's slow hue drift: four crossfading layers ---- */
+  stage.querySelectorAll('.band').forEach(function(b){
+    b.innerHTML = '<i></i><i></i><i></i><i></i>';
+  });
+
+  /* QA mode: strip video sources so headless capture settles.
+     PRINT mode (used for the PPTX export screenshots): freeze the gradient
+     drift like QA does, but leave video alone so its first frame renders. */
+  if(QA){ document.documentElement.classList.add('noanim');
+          stage.querySelectorAll('video').forEach(function(v){ v.removeAttribute('src'); v.load(); }); }
+  if(PRINT){ document.documentElement.classList.add('noanim'); }
+
+  /* ---- fit the 1600x900 stage into the viewport ---- */
+  function fit(){
+    var s = Math.min(window.innerWidth / 1600, window.innerHeight / 900);
+    stage.style.transform = 'translate(-50%,-50%) scale(' + s + ')';
+  }
+  window.addEventListener('resize', fit); fit();
+
+  /* ---- slide switching; videos only run on the visible slide ---- */
+  function show(n){
+    i = Math.max(0, Math.min(slides.length - 1, n));
+    slides.forEach(function(s, k){
+      var on = k === i;
+      s.classList.toggle('on', on);
+      if(!QA) s.querySelectorAll('video').forEach(function(v){
+        if(on){ v.currentTime = 0; v.play().catch(function(){}); } else { v.pause(); }
+      });
+    });
+    bar.style.width = ((i + 1) / slides.length * 100) + '%';
+    if(location.hash !== '#' + i) history.replaceState(null, '', '#' + i);
+  }
+  function next(){ show(i + 1); }
+  function prev(){ show(i - 1); }
+
+  /* ---- overview grid (live clones, scaled down) ---- */
+  var ovBuilt = false;
+  function buildOv(){
+    if(ovBuilt) return; ovBuilt = true;
+    slides.forEach(function(s, k){
+      var cell = document.createElement('div'); cell.className = 'ovi';
+      var mini = s.cloneNode(true);
+      mini.className = 'slide on mini';
+      mini.style.cssText = 'position:absolute;left:0;top:0;width:1600px;height:900px;' +
+                           'opacity:1;visibility:visible;transform-origin:top left';
+      mini.querySelectorAll('video').forEach(function(v){ v.removeAttribute('src'); });
+      cell.appendChild(mini);
+      var tag = document.createElement('b'); tag.textContent = k; cell.appendChild(tag);
+      cell.onclick = function(){ toggleOv(false); show(k); };
+      ovg.appendChild(cell);
+      requestAnimationFrame(function(){
+        mini.style.transform = 'scale(' + (cell.clientWidth / 1600) + ')';
+      });
+    });
+    window.addEventListener('resize', function(){
+      ovg.querySelectorAll('.ovi').forEach(function(c){
+        c.firstChild.style.transform = 'scale(' + (c.clientWidth / 1600) + ')';
+      });
+    });
+  }
+  function toggleOv(on){
+    if(on === undefined) on = !ov.classList.contains('on');
+    if(on) buildOv();
+    ov.classList.toggle('on', on);
+  }
+
+  /* ---- input ---- */
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' '){ next(); e.preventDefault(); }
+    else if(e.key === 'ArrowLeft' || e.key === 'PageUp'){ prev(); e.preventDefault(); }
+    else if(e.key === 'Home'){ show(0); }
+    else if(e.key === 'End'){ show(slides.length - 1); }
+    else if(e.key === 'o' || e.key === 'O'){ toggleOv(); }
+    else if(e.key === 'Escape'){ toggleOv(false); }
+    else if(e.key === 'f' || e.key === 'F'){
+      if(document.fullscreenElement) document.exitFullscreen();
+      else document.documentElement.requestFullscreen();
+    }
+  });
+  document.getElementById('viewport').addEventListener('click', function(e){
+    if(e.target.tagName === 'VIDEO') return;
+    (e.clientX < window.innerWidth * 0.28 ? prev : next)();
+  });
+
+  /* the key hint fades out of the way once the deck is running */
+  var hint = document.getElementById('hint'), hintT;
+  function nudgeHint(){
+    hint.classList.remove('dim');
+    clearTimeout(hintT);
+    hintT = setTimeout(function(){ hint.classList.add('dim'); }, 4000);
+  }
+  document.addEventListener('mousemove', nudgeHint);
+  nudgeHint();
+
+  show(parseInt((location.hash || '#0').slice(1), 10) || 0);
+})();
+</script>
 </body>
 </html>
