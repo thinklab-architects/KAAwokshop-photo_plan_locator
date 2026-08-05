@@ -2,6 +2,14 @@
 
 > **這是吳欣儒開發的「高雄建築師公會 KAA AI WORKSHOP」示範檔案。**
 
+**▶ 線上直接試用**（不用安裝、不用註冊，資料存在你自己的瀏覽器裡）
+　<https://thinklab-architects.github.io/KAAwokshop-photo_plan_locator/app/>
+
+**▶ 演講簡報**（本站首頁，方向鍵翻頁）
+　<https://thinklab-architects.github.io/KAAwokshop-photo_plan_locator/>
+
+---
+
 ## 這是什麼
 
 事務所每次現場查驗回來，都要做同一件事：把幾十張照片跟平面圖對起來，
