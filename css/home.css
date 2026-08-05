@@ -1,0 +1,141 @@
+/* ══════════════════════════════════════════════════════════
+   主介面 — 所有工地紀錄
+   ══════════════════════════════════════════════════════════ */
+
+.view{ height:100%; display:flex; flex-direction:column; }
+
+/* ─────────── 頂部 ─────────── */
+.homeBar{
+  flex:none; height:60px; display:flex; align-items:center; gap:18px;
+  padding:0 20px; background:var(--bg-2); border-bottom:1px solid var(--line);
+}
+.brand.big{ font-size:15px; gap:9px; }
+
+.homeSearch{
+  flex:1; max-width:420px; display:flex; align-items:center; gap:7px;
+  background:var(--bg); border:1px solid var(--line); border-radius:7px;
+  padding:0 10px; height:32px; color:var(--txt-3);
+}
+.homeSearch:focus-within{ border-color:var(--accent); color:var(--txt-2); }
+.homeSearch input{
+  flex:1; background:none; border:none; outline:none;
+  font-size:12.5px; color:var(--txt); min-width:0;
+}
+.homeSearch input::-webkit-search-cancel-button{ filter:invert(.6); }
+
+.homeSort{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--txt-3); }
+.homeSort select{
+  background:var(--bg); border:1px solid var(--line); border-radius:6px;
+  padding:5px 7px; font-size:12px;
+}
+.homeActions{ display:flex; gap:8px; margin-left:auto; }
+
+/* ─────────── 內容 ─────────── */
+.homeMain{ flex:1; overflow-y:auto; padding:20px 20px 40px; }
+.projStats{ font-size:11.5px; color:var(--txt-3); margin-bottom:12px; letter-spacing:.02em; }
+
+/* ─────────── 專案分組 ─────────── */
+.projGroups{ display:flex; flex-direction:column; gap:28px; }
+
+.pgHead{
+  display:flex; align-items:baseline; gap:10px;
+  border-bottom:1px solid var(--line); padding-bottom:7px; margin-bottom:12px;
+}
+.pgName{
+  margin:0; font-size:15px; font-weight:700; color:var(--txt);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.pgName.none{ color:var(--txt-3); font-weight:500; font-style:italic; }
+.pgCount{ flex:none; font-size:11px; color:var(--txt-3); }
+.pgActs{ margin-left:auto; flex:none; display:flex; gap:6px; }
+.pgAct{
+  background:var(--bg-2); border:1px solid var(--line); color:var(--txt-2);
+  border-radius:6px; padding:4px 9px; font-size:11px; cursor:pointer;
+}
+.pgAct:hover{ background:var(--bg-3); color:var(--txt); border-color:#4a515f; }
+.pgAct.primary{ border-color:var(--accent); color:var(--accent); }
+.pgAct.primary:hover{ background:var(--accent); color:#2a1e00; }
+
+.pgGrid{
+  display:grid; gap:14px;
+  grid-template-columns:repeat(auto-fill, minmax(232px, 1fr));
+}
+
+.projCard{
+  position:relative; display:flex; flex-direction:column;
+  background:var(--bg-2); border:1px solid var(--line); border-radius:9px;
+  overflow:hidden; cursor:pointer; outline:none;
+  transition:border-color .13s, transform .13s, box-shadow .13s;
+}
+.projCard:hover, .projCard:focus-visible{
+  border-color:var(--accent); transform:translateY(-2px);
+  box-shadow:0 6px 20px rgba(0,0,0,.4);
+}
+
+.pcCover{
+  position:relative; aspect-ratio:4/3; background:#0e1013;
+  display:grid; place-items:center; overflow:hidden;
+  border-bottom:1px solid var(--line);
+}
+.pcCover img{ width:100%; height:100%; object-fit:cover; display:block; }
+.pcCover.blank{ color:var(--txt-3); font-size:11.5px; }
+
+.pcBadges{ position:absolute; left:7px; bottom:7px; display:flex; gap:4px; flex-wrap:wrap; }
+.pcBadge{
+  font-size:10px; padding:2px 7px; border-radius:11px; letter-spacing:.02em;
+  backdrop-filter:blur(4px); border:1px solid transparent;
+}
+.pcBadge.ok  { background:rgba(30,60,34,.86); color:#8fd694; border-color:#2f5233; }
+.pcBadge.warn{ background:rgba(58,42,22,.86); color:#e8b366; border-color:#5c421f; }
+
+.pcBody{ padding:10px 11px 11px; flex:1; min-width:0; }
+.pcTitle{
+  margin:0 0 3px; font-size:13.5px; font-weight:700; line-height:1.3; color:var(--txt);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.pcTitle.none{ color:var(--txt-3); font-weight:500; font-style:italic; }
+.pcSub{
+  font-size:11.5px; color:var(--txt-2); line-height:1.35; margin-bottom:7px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.pcFacts{ display:flex; flex-wrap:wrap; gap:4px; margin-bottom:6px; }
+.pcFacts span{
+  font-size:10px; color:var(--txt-3); background:var(--bg-3);
+  border:1px solid var(--line); border-radius:4px; padding:1px 5px;
+}
+.pcTime{ font-size:10.5px; color:var(--txt-3); }
+
+.pcActions{
+  position:absolute; top:7px; right:7px; display:flex; gap:4px;
+  opacity:0; transition:opacity .13s;
+}
+.projCard:hover .pcActions,
+.projCard:focus-within .pcActions{ opacity:1; }
+.pcAct{
+  background:rgba(20,22,26,.88); border:1px solid var(--line-2); color:var(--txt-2);
+  border-radius:5px; padding:3px 7px; font-size:10.5px; cursor:pointer;
+  backdrop-filter:blur(4px);
+}
+.pcAct:hover{ background:var(--bg-3); color:var(--txt); border-color:#4a515f; }
+.pcAct.danger:hover{ background:#3a2422; border-color:#6b3c39; color:#ff9c97; }
+
+/* ─────────── 空狀態 ─────────── */
+.homeEmpty{
+  display:grid; place-items:center; gap:14px; text-align:center;
+  padding:70px 20px; color:var(--txt-3); line-height:1.8;
+}
+.homeEmpty svg{ color:var(--line-2); }
+.homeEmpty p{ margin:0; font-size:13px; }
+.homeEmpty strong{ color:var(--txt-2); font-size:14px; }
+.homeEmpty code{
+  background:var(--bg-3); border:1px solid var(--line);
+  padding:1px 5px; border-radius:4px; font-size:11.5px;
+}
+
+@media (max-width:640px){
+  .homeBar{ height:auto; flex-wrap:wrap; padding:10px 12px; gap:10px; }
+  .homeSearch{ max-width:none; order:3; flex-basis:100%; }
+  .homeSort{ display:none; }
+  .homeMain{ padding:14px 12px 32px; }
+  .pgGrid{ grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; }
+}

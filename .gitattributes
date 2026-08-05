@@ -1,0 +1,11 @@
+# Windows 的批次檔與 PowerShell 指令碼一律用 CRLF 簽出，
+# 在 Mac/Linux 上 clone 過再帶回 Windows 才不會變成不能執行的單行檔。
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.bat text eol=crlf
+
+# 二進位，不要做任何換行轉換
+*.pptx binary
+*.png  binary
+*.jpg  binary
+*.pdf  binary

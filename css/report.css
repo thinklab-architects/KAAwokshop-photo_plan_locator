@@ -1,0 +1,176 @@
+/* ══════════════════════════════════════════════════════════
+   報告圖面（A0–A3）— 螢幕預覽與列印共用
+   所有內部座標皆以 mm 絕對定位，由 layout.js 計算後寫入
+   ══════════════════════════════════════════════════════════ */
+
+.sheetBox{
+  /* 由 JS 設定縮放後的實際 px 尺寸，避免縮放留白 */
+  position:relative; flex:none;
+}
+
+.sheet{
+  --fs:1;                       /* 字級倍率，由報告列的「字級」設定 */
+  --t-k:2.4mm; --t-v:4.2mm; --t-w:4.8mm; --t-p:5.2mm; --t-pad:3mm;  /* 標題欄，由 layout 依欄高算出 */
+  position:absolute; top:0; left:0;
+  transform-origin:0 0;
+  background:#fff; color:#111;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+  overflow:hidden;
+  box-shadow:0 5px 26px rgba(0,0,0,.45);
+}
+
+/* ─────────────── 圖框 ─────────────── */
+.sh-frame{
+  position:absolute; border:0.5mm solid #111; pointer-events:none;
+}
+
+/* ─────────────── 標題欄 ─────────────── */
+.sh-title{ position:absolute; display:flex; border-bottom:0.5mm solid #111; }
+.sh-cell{
+  display:flex; flex-direction:column; justify-content:center; gap:.5mm;
+  padding:0 var(--t-pad); border-right:0.25mm solid #111; overflow:hidden;
+  /* 固定欄一律依內容自動撐寬 —— 寫死 mm 寬度在小紙張上會把日期、圖號切掉 */
+  flex:0 0 auto;
+}
+.sh-cell:last-child{ border-right:none; }
+.sh-cell .k{
+  font-size:calc(var(--t-k) * var(--fs));
+  letter-spacing:.1em; color:#777; line-height:1.1; white-space:nowrap;
+}
+.sh-cell .v{
+  font-size:calc(var(--t-v) * var(--fs)); font-weight:600; line-height:1.15;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.sh-cell.grow{ flex:1 1 auto; min-width:0; }
+.sh-cell.office{ flex-direction:row; align-items:center; gap:2mm; }
+.sh-cell.office .sh-logo{ display:block; width:auto; }
+.sh-cell.office .on{
+  font-size:calc(var(--t-v) * var(--fs)); font-weight:700; white-space:nowrap;
+}
+.sh-cell.wide .v{ font-size:calc(var(--t-w) * var(--fs)); font-weight:700; }
+.sh-cell.pageno{ align-items:center; justify-content:center; }
+.sh-cell.pageno .v{ font-size:calc(var(--t-p) * var(--fs)); font-weight:700; letter-spacing:.04em; }
+
+/* ─────────────── 平面圖區 ─────────────── */
+/* 框的長寬比已等於裁切後的平面圖，img 由 crop.imgStyle 絕對定位並放大，
+   超出的部分靠 overflow:hidden 切掉 */
+.sh-planbox{ position:absolute; overflow:hidden; }
+.sh-planbox img{ display:block; object-fit:fill; }
+.sh-scale{
+  position:absolute; right:1.5mm; bottom:1mm; z-index:2;
+  font-size:calc(3mm * var(--fs)); font-weight:700; letter-spacing:.08em;
+  color:#111; background:rgba(255,255,255,.82); padding:0 1.2mm; border-radius:0.6mm;
+}
+/* 多張平面圖時印在左上角的圖名（會跟著列印，讓每頁看得出是哪一層） */
+.sh-planname{
+  position:absolute; left:1.5mm; top:1mm; z-index:2; max-width:70%;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  font-size:calc(3.2mm * var(--fs)); font-weight:700;
+  color:#111; background:rgba(255,255,255,.82); padding:0 1.2mm; border-radius:0.6mm;
+}
+.sh-planlabel{
+  position:absolute; font-size:3mm; letter-spacing:.16em;
+  color:#888; text-transform:uppercase;
+}
+
+/* ─────────────── 照片卡 ─────────────── */
+/* 框線畫在「照片實際佔的矩形」上，不是配給的格子上 —— 否則照片長寬比與格子不同時，
+   外框會浮在照片外面，看起來就是幾條莫名其妙的線。說明文字也緊貼照片下緣。 */
+.sh-imgframe{
+  position:absolute; overflow:hidden;
+  border:0.3mm solid #111; background:#f2f2f2;
+}
+.sh-imgframe img{ display:block; }
+.sh-imgframe svg.anno{ position:absolute; inset:0; width:100%; height:100%; }
+
+/* ── 自由排版：拖曳、縮放把手、對齊輔助線（皆不列印） ── */
+.freeMode [data-arr-id]{ cursor:move; }
+.freeMode [data-arr-id].selected{ outline:0.6mm solid #ffb300; outline-offset:0.4mm; }
+.sh-handle{
+  position:absolute; right:-1.4mm; bottom:-1.4mm; z-index:3;
+  width:3.4mm; height:3.4mm; border-radius:0.6mm;
+  background:#ffb300; border:0.4mm solid #7a5200; cursor:nwse-resize;
+  opacity:0; transition:opacity .12s;
+}
+.freeMode [data-arr-id]:hover .sh-handle,
+.freeMode [data-arr-id].selected .sh-handle{ opacity:1; }
+.sheet.dropSheet{ outline:1.2mm solid var(--dropc, #ffb300); outline-offset:-1.2mm; }
+.freeMode .sh-imgframe.sizeMatch{ outline:0.6mm dashed #ff2d95; outline-offset:0.4mm; }
+.sh-guides{ position:absolute; inset:0; pointer-events:none; z-index:9; overflow:visible; }
+.sh-guides .gd{ stroke:#ff2d95; stroke-width:0.25; stroke-dasharray:2 1.4; }
+
+/* 空格位：拖曳落點，只在螢幕上出現 */
+.sh-slot{
+  position:absolute; border:0.4mm dashed #bbb; border-radius:1mm;
+  background:rgba(0,0,0,.02);
+}
+.sh-imgframe[draggable="true"]{ cursor:grab; }
+.sh-imgframe.dragging{ opacity:.35; }
+.sh-imgframe.dropTarget, .sh-slot.dropTarget{
+  outline:1mm solid #ffb300; outline-offset:-0.5mm;
+}
+
+.sh-badge{
+  position:absolute; z-index:2; top:1.2mm; left:1.2mm;
+  width:7mm; height:7mm; border-radius:50%;
+  background:#111; color:#fff;
+  display:grid; place-items:center;
+  font-size:4mm; font-weight:700; line-height:1;
+  box-shadow:0 0 0 0.5mm #fff;
+}
+.sh-cap{
+  position:absolute; padding:1.4mm .4mm 0;
+  font-size:calc(3.2mm * var(--fs)); line-height:1.35; color:#111;
+  overflow:hidden; word-break:break-word; white-space:pre-wrap;
+}
+.sh-cap .cn{ font-weight:700; margin-right:1.2mm; }
+/* 字級已縮到下限仍放不下 — 用漸層淡出提示還有內容被截斷 */
+.sh-cap.clipped{
+  -webkit-mask-image:linear-gradient(#000 72%, transparent 100%);
+          mask-image:linear-gradient(#000 72%, transparent 100%);
+}
+
+/* ─────────────── 引線 / 釘點 ─────────────── */
+.sh-leaders{ position:absolute; inset:0; pointer-events:none; overflow:visible; }
+.ld-line{ fill:none; stroke:#111; stroke-width:0.3; }
+.ld-dot{ fill:#111; }
+.ld-pin-ring{ fill:#fff; stroke:#111; stroke-width:0.45; }
+.ld-pin-txt{
+  fill:#111; font-weight:700; text-anchor:middle; dominant-baseline:central;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;
+}
+.ld-cone{ fill:#111; fill-opacity:.14; stroke:#111; stroke-width:0.22; }
+.ld-ghost{ fill:none; stroke:#999; stroke-width:0.3; stroke-dasharray:1 1; }
+
+/* ─────────────── 無平面圖時的提示 ─────────────── */
+.sh-noplan{
+  position:absolute; display:grid; place-items:center; text-align:center;
+  color:#bbb; font-size:4mm; border:0.3mm dashed #ccc;
+}
+
+/* ══════════════════════════════════════════════════════════
+   列印
+   ══════════════════════════════════════════════════════════ */
+@media print{
+  html,body{ height:auto; overflow:visible; background:#fff; }
+  body > *:not(#reportModal){ display:none !important; }
+
+  #reportModal{ position:static; display:block; background:#fff; }
+  .reportBar{ display:none !important; }
+  .reportScroll{ overflow:visible; padding:0; }
+  .sheets{ display:block; gap:0; }
+
+  .sheetBox{ width:auto !important; height:auto !important; margin:0 !important; }
+  .sheet{
+    position:relative; transform:none !important;
+    box-shadow:none; break-after:page; page-break-after:always;
+  }
+  .sheetBox:last-child .sheet{ break-after:auto; page-break-after:auto; }
+
+  .sh-slot, .sh-handle, .sh-guides{ display:none !important; }   /* 輔助元件不列印 */
+  .manualBar{ display:none !important; }        /* 自由排版操作列不列印 */
+  .sheet.dropSheet{ outline:none !important; }
+  .sh-imgframe, .sh-planbox{ outline:none !important; opacity:1 !important; }
+
+  *{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+}

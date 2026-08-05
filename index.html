@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>圖說紀錄產生器</title>
+<link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/home.css">
+<link rel="stylesheet" href="css/report.css">
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     主介面：所有工地報告
+     ══════════════════════════════════════════════════════ -->
+<div id="homeView" class="view">
+  <header class="homeBar">
+    <div class="brand big">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
+        <path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-5h6v5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>
+      </svg>
+      <span>圖說紀錄</span>
+    </div>
+
+    <div class="homeSearch">
+      <svg viewBox="0 0 24 24" width="14" height="14"><circle cx="11" cy="11" r="6" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M15.5 15.5L20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+      <input id="projSearch" type="search" placeholder="搜尋專案、紀錄項目、紀錄者…">
+    </div>
+
+    <label class="homeSort">排序
+      <select id="projSort">
+        <option value="updated">最近編輯</option>
+        <option value="date">紀錄日期</option>
+        <option value="name">專案名稱</option>
+        <option value="photos">照片數量</option>
+      </select>
+    </label>
+
+    <div class="homeActions">
+      <button id="btnHelp" class="btn ghost" title="開啟圖文使用說明">使用說明</button>
+      <button id="btnSample" class="btn ghost" title="加入兩份示範紀錄（含平面圖與照片），可以直接練習">示範資料</button>
+      <button id="btnOpenFile" class="btn ghost">開啟紀錄檔</button>
+      <button id="btnNewProj" class="btn primary">＋ 新增紀錄</button>
+    </div>
+  </header>
+
+  <main class="homeMain">
+    <div id="projStats" class="projStats"></div>
+    <div id="projGrid" class="projGroups"></div>
+    <div id="projEmpty" class="homeEmpty" hidden>
+      <svg viewBox="0 0 24 24" width="46" height="46"><path d="M3 20h18M5 20V9l7-5 7 5v11M9 20v-5h6v5" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>
+      <p><strong>還沒有任何紀錄</strong><br>按右上「＋ 新增紀錄」開始，或用「開啟紀錄檔」讀入 <code>.sitelog</code></p>
+    </div>
+    <div id="projNoMatch" class="homeEmpty" hidden><p>沒有符合搜尋條件的紀錄</p></div>
+  </main>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     編輯介面
+     ══════════════════════════════════════════════════════ -->
+<div id="editorView" class="view" hidden>
+
+  <header class="topbar">
+    <button id="btnBackHome" class="backBtn" title="回到全部紀錄">
+      <svg viewBox="0 0 24 24" width="15" height="15"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      全部紀錄
+    </button>
+
+    <div class="metaFields">
+      <label>專案名稱<input id="mProject" type="text" placeholder="○○新建工程 / ○○宅裝修"></label>
+      <label>紀錄項目<input id="mSubject" type="text" placeholder="3F 泥作查驗"></label>
+      <label>日期<input id="mDate" type="date"></label>
+      <label>紀錄者<input id="mAuthor" type="text" placeholder="姓名"></label>
+    </div>
+
+    <div class="topActions">
+      <span id="saveState" class="saveState">已儲存</span>
+      <button id="btnSaveFile" class="btn ghost" title="把這份紀錄存成 .sitelog 檔備份">匯出紀錄檔</button>
+      <button id="btnReport" class="btn primary">
+        <svg viewBox="0 0 24 24" width="15" height="15"><path d="M6 3h9l5 5v13H6z M15 3v5h5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+        產生報告
+      </button>
+    </div>
+  </header>
+
+  <main class="workspace" id="workspace">
+
+    <!-- ─── 左：照片清單 ─── -->
+    <section class="pane paneList">
+      <div class="paneHead">
+        <h2>照片 <span id="photoCount" class="count">0</span></h2>
+        <button id="btnAddPhotos" class="btn small">＋ 匯入照片</button>
+      </div>
+      <ul id="photoList" class="photoList"></ul>
+      <div id="photoEmpty" class="emptyHint">
+        <p>按上方「＋ 匯入照片」<br>或把檔案拖進來<br><span class="hint">支援影像與 PDF</span></p>
+      </div>
+      <div class="paneFoot">
+        <span class="hint">拖曳可調整順序 · 編號會同步到平面圖與報告</span>
+      </div>
+    </section>
+
+    <div class="resizer" id="resizeL" title="拖曳調整寬度（雙擊還原）"></div>
+
+    <!-- ─── 中：平面圖 ─── -->
+    <section class="pane panePlan">
+      <div class="paneHead">
+        <h2>平面圖</h2>
+        <div class="headTools">
+          <button id="btnZoomOut" class="iconBtn" title="縮小">−</button>
+          <span id="zoomLabel" class="zoomLabel">100%</span>
+          <button id="btnZoomIn" class="iconBtn" title="放大">＋</button>
+          <button id="btnZoomFit" class="btn small ghost" title="縮放至符合視窗">符合</button>
+          <button id="btnCal" class="btn small ghost" title="輸入原圖比例（例如 1:100），報告就能以真實比例出圖；也可改用兩點量測">比例尺</button>
+          <button id="btnCropPlan" class="btn small ghost">裁切</button>
+          <button id="btnAddPlan" class="btn small">＋ 匯入平面圖</button>
+        </div>
+      </div>
+
+      <div id="planTabs" class="planTabs" hidden></div>
+
+      <div id="planStage" class="planStage">
+        <div id="planViewport" class="planViewport">
+          <div id="planCanvas" class="planCanvas">
+            <div id="planFrame" class="cropFrame">
+              <img id="planImg" alt="平面圖" draggable="false">
+            </div>
+            <svg id="planOverlay" class="planOverlay" xmlns="http://www.w3.org/2000/svg"></svg>
+          </div>
+        </div>
+        <div id="planEmpty" class="emptyHint big">
+          <p><strong>尚未載入平面圖</strong><br>按右上「＋ 匯入平面圖」或把檔案拖進來<br><span class="hint">支援影像、PDF · 可匯入多張（各樓層分頁顯示）</span></p>
+        </div>
+        <div id="planTip" class="planTip">選一張照片，再點平面圖標記位置</div>
+        <div id="calDlg" class="calDlg" hidden>
+          <div class="cdHead">
+            <strong>比例尺設定</strong>
+            <span class="hint">告訴系統原圖的比例與紙張，報告就能以 1:100 等真實比例放置平面圖</span>
+          </div>
+          <div id="calState" class="cdState"></div>
+          <label class="cdField">原圖比例　1 :
+            <input id="calN" type="number" min="1" step="1" placeholder="100">
+          </label>
+          <label class="cdField">原圖紙張
+            <select id="calPaper"></select>
+          </label>
+          <label class="cdField" id="calCustomW" hidden>紙張寬度
+            <input id="calCustomWInput" type="number" min="1" step="1" placeholder="594">
+            <span class="unit">mm</span>
+          </label>
+          <div class="cdFoot">
+            <button id="calDlgPick" class="btn tiny ghost" title="圖檔被裁切或另外縮放過、不確定紙張大小時，改在圖上點兩點量距離">改用兩點量測</button>
+            <span class="fdSpacer"></span>
+            <button id="calDlgClear" class="btn tiny ghost danger">清除</button>
+            <button id="calDlgClose" class="btn tiny ghost">關閉</button>
+            <button id="calDlgApply" class="btn tiny primary">套用</button>
+          </div>
+        </div>
+        <div id="planCalBar" class="cropBar" hidden>
+          <span class="cropMsg" id="calMsg">在平面圖上點出一段已知距離的兩端（例如一道牆或尺寸線）</span>
+          <label class="inlineField">實際距離
+            <input id="calDist" type="number" min="1" step="1" placeholder="8000" disabled>
+            <span class="unit">mm</span>
+          </label>
+          <button id="calCancel" class="btn tiny ghost">取消</button>
+          <button id="calApply" class="btn tiny primary" disabled>套用</button>
+        </div>
+        <div id="planCropBar" class="cropBar" hidden>
+          <span class="cropMsg">拖曳框選要保留的範圍</span>
+          <button id="planCropReset" class="btn tiny ghost">全圖</button>
+          <button id="planCropCancel" class="btn tiny ghost">取消</button>
+          <button id="planCropApply" class="btn tiny primary">套用裁切</button>
+        </div>
+      </div>
+
+      <div class="paneFoot planFoot">
+        <span class="hint">滾輪縮放 · 拖曳空白處平移 · 拖曳圓點移動位置 · 拖曳圓點外的把手調整拍攝方向</span>
+      </div>
+    </section>
+
+    <div class="resizer" id="resizeR" title="拖曳調整寬度（雙擊還原）"></div>
+
+    <!-- ─── 右：照片編輯 ─── -->
+    <section class="pane paneEdit">
+      <div class="paneHead">
+        <h2 id="editTitle">照片標註</h2>
+        <div class="headTools">
+          <button id="btnCropPhoto" class="btn small ghost">裁切</button>
+          <button id="btnPrev" class="iconBtn" title="上一張">‹</button>
+          <button id="btnNext" class="iconBtn" title="下一張">›</button>
+        </div>
+      </div>
+
+      <div id="annoToolbar" class="annoToolbar">
+        <div class="toolGroup" role="group" aria-label="標註工具">
+          <button class="toolBtn" data-tool="select" title="選取 / 移動 (V)">
+            <svg viewBox="0 0 24 24"><path d="M5 3l14 8-6 1.6L10.4 19z" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="toolBtn" data-tool="pen" title="畫筆 (P)">
+            <svg viewBox="0 0 24 24"><path d="M4 20l3.5-1 11-11-2.5-2.5-11 11z M15 6.5L17.5 9" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="toolBtn" data-tool="line" title="直線 (L)">
+            <svg viewBox="0 0 24 24"><path d="M4 20L20 4" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
+          </button>
+          <button class="toolBtn" data-tool="arrow" title="箭頭 (A)">
+            <svg viewBox="0 0 24 24"><path d="M4 20L19 5 M11 5h8v8" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+          </button>
+          <button class="toolBtn" data-tool="rect" title="矩形 (R)">
+            <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
+          </button>
+          <button class="toolBtn" data-tool="ellipse" title="橢圓 (O)">
+            <svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="6" fill="none" stroke="currentColor" stroke-width="1.7"/></svg>
+          </button>
+          <button class="toolBtn" data-tool="text" title="文字 (T)">
+            <svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M9 19h6" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+
+        <div class="toolGroup swatches" id="colorSwatches" role="group" aria-label="顏色"></div>
+
+        <div class="toolGroup" role="group" aria-label="線寬">
+          <button class="toolBtn wBtn" data-w="4"  title="細"><span class="wDot" style="height:2px"></span></button>
+          <button class="toolBtn wBtn" data-w="8"  title="中"><span class="wDot" style="height:4px"></span></button>
+          <button class="toolBtn wBtn" data-w="14" title="粗"><span class="wDot" style="height:7px"></span></button>
+        </div>
+
+        <div class="toolGroup">
+          <button id="btnUndo" class="btn small ghost" title="復原 (Ctrl+Z)">復原</button>
+          <button id="btnClearAnno" class="btn small ghost" title="清除此張全部標註">清除</button>
+        </div>
+      </div>
+
+      <div id="editStage" class="editStage">
+        <div id="photoWrap" class="photoWrap">
+          <div id="photoFrame" class="cropFrame">
+            <img id="photoImg" alt="" draggable="false">
+          </div>
+          <svg id="photoOverlay" class="photoOverlay" xmlns="http://www.w3.org/2000/svg"></svg>
+        </div>
+        <div id="editEmpty" class="emptyHint big"><p>從左側選一張照片開始標註</p></div>
+        <div id="photoCropBar" class="cropBar" hidden>
+          <span class="cropMsg">拖曳框選要保留的範圍</span>
+          <button id="photoCropReset" class="btn tiny ghost">全圖</button>
+          <button id="photoCropCancel" class="btn tiny ghost">取消</button>
+          <button id="photoCropApply" class="btn tiny primary">套用裁切</button>
+        </div>
+      </div>
+
+      <div class="captionBox">
+        <div class="captionHead">
+          <label for="capText">說明文字</label>
+          <span id="capCounter" class="hint">0</span>
+        </div>
+        <textarea id="capText" rows="3" placeholder="例：3F 東側外牆，磁磚空鼓約 0.6 m²，已標示待修範圍。" disabled></textarea>
+        <div class="captionRow">
+          <label class="inlineField">拍攝方向
+            <input id="dirAngle" type="number" min="0" max="359" step="5" placeholder="—" disabled>
+            <span class="unit">°</span>
+          </label>
+          <button id="btnClearDir" class="btn tiny ghost" disabled>清除方向</button>
+          <button id="btnClearPin" class="btn tiny ghost" disabled>清除位置</button>
+          <button id="btnDelPhoto" class="btn tiny ghost danger" disabled>刪除照片</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ══════════════════ 報告視窗 ══════════════════ -->
+<div id="reportModal" class="modal" hidden>
+  <div class="reportBar">
+    <div class="reportBarLeft">
+      <strong>報告預覽</strong>
+      <span id="sheetInfo" class="hint"></span>
+    </div>
+
+    <div class="reportBarMid">
+      <label>紙張
+        <select id="optPaper">
+          <option value="A0">A0（1189×841）</option>
+          <option value="A1">A1（841×594）</option>
+          <option value="A2">A2（594×420）</option>
+          <option value="A3" selected>A3（420×297）</option>
+        </select>
+      </label>
+      <label>方向
+        <select id="optOrient">
+          <option value="landscape">橫式</option>
+          <option value="portrait">直式</option>
+        </select>
+      </label>
+      <label>每張圖面
+        <select id="optPerSheet">
+          <option value="4">4 張照片</option>
+          <option value="6">6 張照片</option>
+          <option value="8" selected>8 張照片</option>
+          <option value="10">10 張照片</option>
+          <option value="12">12 張照片</option>
+          <option value="14">14 張照片</option>
+        </select>
+      </label>
+      <label>版面
+        <select id="optEdges">
+          <option value="auto" selected>自動（填滿版面）</option>
+          <option value="sides">只放兩側</option>
+          <option value="free">自由排版</option>
+        </select>
+      </label>
+      <label>比例
+        <select id="optScale">
+          <option value="">自動大小</option>
+          <option value="50">1:50</option>
+          <option value="75">1:75</option>
+          <option value="100">1:100</option>
+          <option value="150">1:150</option>
+          <option value="200">1:200</option>
+          <option value="250">1:250</option>
+          <option value="300">1:300</option>
+          <option value="500">1:500</option>
+        </select>
+      </label>
+      <label>字級
+        <select id="optFont">
+          <option value="0.8">特小</option>
+          <option value="0.9">小</option>
+          <option value="1" selected>標準</option>
+          <option value="1.15">大</option>
+          <option value="1.3">特大</option>
+          <option value="1.5">超大</option>
+        </select>
+      </label>
+      <label class="chk"><input id="optLeaders" type="checkbox" checked> 引線</label>
+      <label class="chk"><input id="optGhost" type="checkbox" checked> 顯示其他頁位置</label>
+    </div>
+
+    <div class="reportBarRight">
+      <button id="btnFrame" class="btn ghost" title="事務所圖框：名稱、Logo、額外標題欄位">圖框</button>
+      <button id="btnPrint" class="btn primary">列印 / 存成 PDF</button>
+      <button id="btnCloseReport" class="btn ghost">關閉</button>
+    </div>
+  </div>
+
+  <!-- 圖框設定面板 -->
+  <div id="frameDlg" class="frameDlg" hidden>
+    <div class="fdHead">
+      <strong>圖框設定</strong>
+      <span class="hint">套用在這份紀錄的報告標題欄；可設為事務所預設</span>
+    </div>
+    <label class="fdField">事務所名稱
+      <input id="frOffice" type="text" placeholder="○○建築師事務所">
+    </label>
+    <div class="fdField">
+      <span>Logo</span>
+      <div class="fdLogoRow">
+        <button id="frLogoPick" class="btn small ghost">選擇圖檔</button>
+        <img id="frLogoPrev" class="fdLogoPrev" alt="" hidden>
+        <button id="frLogoClear" class="btn tiny ghost danger" hidden>移除</button>
+      </div>
+    </div>
+    <div class="fdField">
+      <span>額外標題欄位（印在日期前面）</span>
+      <div id="frExtras" class="fdExtras"></div>
+      <button id="frAddExtra" class="btn tiny ghost">＋ 新增欄位</button>
+    </div>
+    <div class="fdFoot">
+      <label class="chk"><input id="frDefault" type="checkbox"> 設為新紀錄的預設圖框</label>
+      <span class="fdSpacer"></span>
+      <button id="frClose" class="btn small ghost">關閉</button>
+      <button id="frSave" class="btn small primary">套用</button>
+    </div>
+  </div>
+
+  <!-- 自由排版 -->
+  <div id="freeBar" class="manualBar" hidden>
+    <span class="mbLabel">自由排版</span>
+    <span class="mbHint">拖曳移動 · 拖到另一張照片上互換 · 右下角把手縮放 · 方向鍵微調（Shift 5mm）· Alt 暫時不吸附 · Ctrl+Z 復原 / Ctrl+Y 重做</span>
+    <label class="chk mbChk"><input id="optSnap" type="checkbox" checked> 對齊吸附</label>
+    <button id="btnResetFree" class="btn tiny ghost">全部重排</button>
+  </div>
+
+  <div id="reportScroll" class="reportScroll">
+    <div id="sheets" class="sheets"></div>
+  </div>
+</div>
+
+<!-- 隱藏的檔案輸入 -->
+<input id="filePhotos" type="file" accept="image/*,.pdf" multiple hidden>
+<input id="filePlan"   type="file" accept="image/*,.pdf" hidden>
+<input id="fileProj"   type="file" accept=".sitelog,.json,application/json" hidden>
+<input id="fileLogo"   type="file" accept="image/*" hidden>
+
+<div id="dropVeil" class="dropVeil" hidden><div id="dropVeilMsg">放開以匯入</div></div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/util.js"></script>
+<script src="js/db.js"></script>
+<script src="js/state.js"></script>
+<script src="js/crop.js"></script>
+<script src="js/convert.js"></script>
+<script src="js/plan.js"></script>
+<script src="js/photo.js"></script>
+<script src="js/layout.js"></script>
+<script src="js/report.js"></script>
+<script src="js/arrange.js"></script>
+<script src="js/home.js"></script>
+<script src="js/sample.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

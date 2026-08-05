@@ -1,0 +1,846 @@
+<meta charset="utf-8">
+<title>圖說紀錄產生器 · 使用說明</title>
+
+<style>
+/* ══════════════════════════════════════════════════════════
+   取色自工具本身：琥珀＝可以動的東西（把手、選取），洋紅＝對齊線，
+   白紙黑線＝圖面。說明圖裡看到什麼顏色，工具裡就是同一個東西。
+   ══════════════════════════════════════════════════════════ */
+:root{
+  --ground:#f5f4f1; --card:#ffffff; --ink:#16181c; --ink-2:#4a5058; --ink-3:#868d96;
+  --rule:#dcd8d0; --rule-2:#c2bdb3;
+  --amber:#e09400; --amber-soft:#fff4d6; --magenta:#d6157a;
+  --sheet:#ffffff; --sheet-line:#1b1d21; --sheet-fill:#e8e6e1;
+  --ui:#22262e; --ui-2:#3b414d; --ui-txt:#c9d1dc;
+  --warn-bg:#fdf3e0; --warn-line:#e6bf72;
+  --mono:ui-monospace,"SF Mono",Menlo,Consolas,"Noto Sans Mono CJK TC",monospace;
+  --sans:"Noto Sans TC","PingFang TC","Microsoft JhengHei",-apple-system,
+         BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+}
+@media (prefers-color-scheme:dark){
+  :root{
+    --ground:#14161a; --card:#1b1e24; --ink:#e7eaef; --ink-2:#a6aeba; --ink-3:#727a86;
+    --rule:#2e333d; --rule-2:#3d4450; --amber:#ffb300; --amber-soft:#2a2312;
+    --magenta:#ff5aa8; --warn-bg:#2a2113; --warn-line:#5c4520;
+    --ui:#22262e; --ui-2:#3b414d; --ui-txt:#c9d1dc;
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#14161a; --card:#1b1e24; --ink:#e7eaef; --ink-2:#a6aeba; --ink-3:#727a86;
+  --rule:#2e333d; --rule-2:#3d4450; --amber:#ffb300; --amber-soft:#2a2312;
+  --magenta:#ff5aa8; --warn-bg:#2a2113; --warn-line:#5c4520;
+}
+:root[data-theme="light"]{
+  --ground:#f5f4f1; --card:#ffffff; --ink:#16181c; --ink-2:#4a5058; --ink-3:#868d96;
+  --rule:#dcd8d0; --rule-2:#c2bdb3; --amber:#e09400; --amber-soft:#fff4d6;
+  --magenta:#d6157a; --warn-bg:#fdf3e0; --warn-line:#e6bf72;
+}
+
+*{ box-sizing:border-box; }
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:15px; line-height:1.75;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{ max-width:900px; margin:0 auto; padding:0 22px 90px; }
+
+header{ padding:54px 0 26px; border-bottom:1px solid var(--rule); }
+.eyebrow{
+  font-family:var(--mono); font-size:11.5px; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--ink-3); margin-bottom:14px;
+}
+h1{ margin:0 0 12px; font-size:33px; font-weight:800; line-height:1.2; text-wrap:balance; }
+.lede{ margin:0; font-size:16.5px; color:var(--ink-2); max-width:62ch; }
+
+nav.toc{
+  display:flex; flex-wrap:wrap; gap:7px; padding:18px 0 4px;
+}
+nav.toc a{
+  font-size:12.5px; text-decoration:none; color:var(--ink-2);
+  border:1px solid var(--rule-2); border-radius:15px; padding:3px 12px;
+  background:var(--card);
+}
+nav.toc a:hover{ border-color:var(--amber); color:var(--ink); }
+nav.toc a:focus-visible{ outline:2px solid var(--amber); outline-offset:2px; }
+
+h2{
+  margin:58px 0 8px; font-size:22px; font-weight:800;
+  display:flex; align-items:baseline; gap:11px; text-wrap:balance;
+  scroll-margin-top:20px;
+}
+h2 .tag{
+  font-family:var(--mono); font-size:11px; font-weight:600; letter-spacing:.1em;
+  color:var(--amber); border:1px solid var(--rule-2); border-radius:3px;
+  padding:2px 7px; flex:none;
+}
+h3{ margin:30px 0 4px; font-size:16px; font-weight:700; }
+p{ margin:10px 0; max-width:68ch; }
+.sub{ color:var(--ink-2); font-size:14px; }
+strong{ font-weight:700; }
+code, kbd{ font-family:var(--mono); font-size:.88em; }
+code{ background:var(--amber-soft); padding:1px 5px; border-radius:3px; }
+kbd{
+  background:var(--card); border:1px solid var(--rule-2); border-bottom-width:2px;
+  border-radius:4px; padding:1px 6px; font-size:12px; white-space:nowrap;
+}
+
+.fig{
+  background:var(--card); border:1px solid var(--rule); border-radius:6px;
+  padding:16px; margin:16px 0;
+}
+.fig figcaption, .figcap{
+  font-family:var(--mono); font-size:11px; letter-spacing:.06em;
+  color:var(--ink-3); margin-top:10px; text-align:center;
+}
+svg.dg{ display:block; width:100%; height:auto; }
+
+.step{
+  display:grid; grid-template-columns:344px 1fr; gap:24px; align-items:start;
+  background:var(--card); border:1px solid var(--rule); border-radius:6px;
+  padding:18px; margin:16px 0;
+}
+.step figure{ margin:0; }
+.step h3{ margin-top:0; }
+.step p{ margin:8px 0; }
+
+.tableWrap{ overflow-x:auto; margin:16px 0; }
+table{ border-collapse:collapse; width:100%; font-size:14px; min-width:480px; }
+th, td{ text-align:left; padding:9px 12px; border-bottom:1px solid var(--rule); vertical-align:top; }
+th{
+  font-family:var(--mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink-3); font-weight:600; border-bottom:1px solid var(--rule-2);
+}
+td:first-child{ white-space:nowrap; font-weight:600; }
+tbody tr:last-child td{ border-bottom:none; }
+
+.note{
+  border-left:3px solid var(--warn-line); background:var(--warn-bg);
+  padding:12px 16px; margin:18px 0; border-radius:0 5px 5px 0;
+}
+.note p{ margin:4px 0; }
+.note .lbl{
+  font-family:var(--mono); font-size:11px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-2); display:block; margin-bottom:3px;
+}
+
+/* 沙盒 */
+.sandbox{ background:var(--card); border:1px solid var(--rule); border-radius:6px; padding:16px; margin:16px 0; }
+.sbStage{
+  position:relative; background:var(--sheet); border:2px solid var(--sheet-line);
+  border-radius:2px; height:300px; overflow:hidden; touch-action:none;
+  user-select:none;
+}
+.sbTitle{
+  position:absolute; left:0; right:0; top:0; height:26px;
+  border-bottom:2px solid var(--sheet-line); background:#fff;
+  font-family:var(--mono); font-size:10px; letter-spacing:.1em;
+  color:#8b9099; display:flex; align-items:center; padding:0 10px;
+}
+.sbItem{
+  position:absolute; border:1.5px solid var(--sheet-line); background:var(--sheet-fill);
+  cursor:move; display:grid; place-items:center;
+  font-family:var(--mono); font-size:12px; font-weight:700; color:#3b4048;
+}
+.sbItem.plan{ background:#fff; }
+.sbItem.sel{ outline:2px solid var(--amber); outline-offset:2px; }
+.sbItem.swap{ outline:3px solid var(--amber); outline-offset:-2px; }
+.sbHandle{
+  position:absolute; right:-5px; bottom:-5px; width:10px; height:10px;
+  background:var(--amber); border:1.5px solid #7a5200; border-radius:2px;
+  cursor:nwse-resize; opacity:0; transition:opacity .12s;
+}
+.sbItem:hover .sbHandle, .sbItem.sel .sbHandle{ opacity:1; }
+.sbGuide{ position:absolute; background:var(--magenta); pointer-events:none; }
+.sbBar{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; margin-top:12px; font-size:13px; color:var(--ink-2); }
+.sbBar label{ display:flex; align-items:center; gap:6px; cursor:pointer; }
+.sbBar button{
+  font:inherit; font-size:12.5px; background:transparent; color:var(--ink);
+  border:1px solid var(--rule-2); border-radius:5px; padding:4px 11px; cursor:pointer;
+}
+.sbBar button:hover{ background:var(--ground); }
+.sbBar button:focus-visible, .sbBar input:focus-visible{ outline:2px solid var(--amber); outline-offset:2px; }
+.sbRead{ font-family:var(--mono); font-size:12px; color:var(--ink-3); margin-left:auto; font-variant-numeric:tabular-nums; }
+
+@media (max-width:720px){
+  .step{ grid-template-columns:1fr; gap:14px; }
+  h1{ font-size:26px; }
+  .wrap{ padding:0 16px 60px; }
+}
+@media (prefers-reduced-motion:reduce){ *{ transition:none !important; } }
+</style>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">圖說紀錄產生器</div>
+  <h1>使用說明</h1>
+  <p class="lede">匯入現場照片和平面圖，點出每張照片拍在哪裡，寫上說明 ——
+  一鍵產出有引線、可直接印成 PDF 的紀錄圖面。工地查驗、室內設計勘查都適用。
+  全部在你自己的電腦裡完成，照片不會上傳到任何地方。</p>
+  <nav class="toc" aria-label="目錄">
+    <a href="#s1">整體流程</a><a href="#s2">主介面</a><a href="#s3">編輯畫面</a>
+    <a href="#s4">標位置與方向</a><a href="#s5">照片標註</a><a href="#s6">裁切</a>
+    <a href="#s7">產生報告</a><a href="#s8">自由排版</a><a href="#s9">印成 PDF</a>
+    <a href="#s10">存檔與備份</a><a href="#s11">常見問題</a>
+  </nav>
+</header>
+
+<h2 id="s1"><span class="tag">概覽</span>整體流程：三步</h2>
+
+<figure class="fig">
+  <svg class="dg" viewBox="0 0 860 150" role="img" aria-label="三步流程：匯入、定位與說明、產出報告">
+    <g font-family="var(--sans)">
+      <rect x="10" y="24" width="240" height="86" rx="6" fill="none" stroke="var(--rule-2)" stroke-width="1.5"/>
+      <text x="26" y="52" font-size="15" font-weight="700" fill="var(--ink)">1 · 匯入</text>
+      <text x="26" y="76" font-size="12.5" fill="var(--ink-2)">平面圖（各樓層都可以）</text>
+      <text x="26" y="94" font-size="12.5" fill="var(--ink-2)">現場照片一批</text>
+      <path d="M258 67h34" stroke="var(--amber)" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M286 60l9 7-9 7" fill="none" stroke="var(--amber)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="300" y="24" width="250" height="86" rx="6" fill="none" stroke="var(--rule-2)" stroke-width="1.5"/>
+      <text x="316" y="52" font-size="15" font-weight="700" fill="var(--ink)">2 · 定位＋說明</text>
+      <text x="316" y="76" font-size="12.5" fill="var(--ink-2)">點平面圖標出拍攝位置</text>
+      <text x="316" y="94" font-size="12.5" fill="var(--ink-2)">寫說明、畫標記、裁切</text>
+      <path d="M558 67h34" stroke="var(--amber)" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M586 60l9 7-9 7" fill="none" stroke="var(--amber)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <rect x="600" y="24" width="250" height="86" rx="6" fill="var(--amber-soft)" stroke="var(--amber)" stroke-width="1.8"/>
+      <text x="616" y="52" font-size="15" font-weight="700" fill="var(--ink)">3 · 產生報告</text>
+      <text x="616" y="76" font-size="12.5" fill="var(--ink-2)">自動排版＋引線</text>
+      <text x="616" y="94" font-size="12.5" fill="var(--ink-2)">列印成 PDF（A0–A3）</text>
+    </g>
+  </svg>
+  <figcaption>整份工具只做這一件事，其他都是讓這三步更順的配套</figcaption>
+</figure>
+
+<h2 id="s2"><span class="tag">01</span>主介面：專案與紀錄</h2>
+
+<div class="step">
+  <figure>
+    <svg class="dg" viewBox="0 0 344 216" role="img" aria-label="主介面：紀錄卡片牆與右上角的新增按鈕">
+      <rect x="0" y="0" width="344" height="216" rx="4" fill="var(--ui)"/>
+      <rect x="0" y="0" width="344" height="34" fill="#1b1e24"/>
+      <text x="12" y="21" font-size="11" font-weight="700" fill="var(--amber)" font-family="var(--sans)">圖說紀錄</text>
+      <rect x="104" y="9" width="196" height="16" rx="8" fill="#14161a" stroke="var(--ui-2)"/>
+      <text x="114" y="21" font-size="9" fill="#727a86" font-family="var(--sans)">搜尋…</text>
+      <rect x="262" y="8" width="72" height="18" rx="4" fill="var(--amber)"/>
+      <text x="298" y="21" font-size="9.5" font-weight="700" fill="#1a1206" text-anchor="middle" font-family="var(--sans)">＋ 新增紀錄</text>
+      <g font-family="var(--sans)">
+        <rect x="12" y="46" width="100" height="120" rx="5" fill="#1b1e24" stroke="var(--ui-2)"/>
+        <rect x="12" y="46" width="100" height="64" rx="5" fill="#3b4048"/>
+        <text x="20" y="128" font-size="9.5" font-weight="700" fill="#e7eaef">和平東路工程</text>
+        <text x="20" y="143" font-size="8.5" fill="#a6aeba">3F 泥作查驗</text>
+        <rect x="18" y="96" width="52" height="11" rx="5" fill="#1e3320"/>
+        <text x="44" y="104.5" font-size="7.5" fill="#8fd694" text-anchor="middle">已完成定位</text>
+        <rect x="122" y="46" width="100" height="120" rx="5" fill="#1b1e24" stroke="var(--ui-2)"/>
+        <rect x="122" y="46" width="100" height="64" rx="5" fill="#31363f"/>
+        <text x="130" y="128" font-size="9.5" font-weight="700" fill="#e7eaef">信義路大樓</text>
+        <text x="130" y="143" font-size="8.5" fill="#a6aeba">B1 機電查驗</text>
+        <rect x="128" y="96" width="48" height="11" rx="5" fill="#3a2a16"/>
+        <text x="152" y="104.5" font-size="7.5" fill="#e8b366" text-anchor="middle">2 張未定位</text>
+        <rect x="232" y="46" width="100" height="120" rx="5" fill="#1b1e24" stroke="var(--ui-2)" stroke-dasharray="4 3"/>
+        <text x="282" y="112" font-size="20" fill="#4a515f" text-anchor="middle">＋</text>
+      </g>
+    </svg>
+    <figcaption>一份工程查驗＝一張卡；點卡片進入編輯</figcaption>
+  </figure>
+  <div>
+    <h3>依專案分組，一個專案底下放很多份紀錄</h3>
+    <p>開啟工具後先看到的是<strong>依「專案名稱」分組的紀錄清單</strong> ——
+    同一個工程或案場的歷次紀錄（例如每週查驗、各階段勘查）全部收在同一組，
+    像一本完整的專案日誌。每張卡是一份紀錄，
+    顯示封面、紀錄項目、日期、照片數，和狀態標籤（缺平面圖 / N 張未定位 / 已完成定位）。</p>
+    <p>每組標題列有「<strong>＋ 新增紀錄</strong>」——新紀錄直接歸進該專案；
+    「<strong>重新命名</strong>」會把整組（底下所有紀錄）一起改名。
+    右上角的全域「＋ 新增紀錄」則開一份空白的，進編輯畫面填「專案名稱」就會自動歸組。</p>
+    <p class="sub">滑到卡片上會出現<strong>複製、匯出、刪除</strong>三個鈕。
+    「開啟紀錄檔」用來讀入 <code>.sitelog</code> 備份檔（見「存檔與備份」），
+    讀入一律新增成另一份，不會蓋掉現有的。</p>
+    <p class="sub"><strong>示範資料</strong>：第一次開啟時會自動放進兩份示範紀錄
+    （二層住宅的一樓與二樓，共 14 張查驗照片，位置、說明、標註都已填好），
+    可以直接點開來練習，或按右上角的「<strong>示範資料</strong>」重新載入一份。
+    照片與平面圖都是 AI 生成的教學素材，不是實際工程紀錄。用不到就整份刪掉，
+    刪掉之後不會再自己出現。</p>
+  </div>
+</div>
+
+<h2 id="s3"><span class="tag">02</span>編輯畫面：三欄</h2>
+
+<figure class="fig">
+  <svg class="dg" viewBox="0 0 860 300" role="img" aria-label="編輯畫面三欄配置：左為照片清單、中為平面圖、右為照片標註">
+    <rect x="0" y="0" width="860" height="300" rx="4" fill="var(--ui)"/>
+    <rect x="0" y="0" width="860" height="36" fill="#1b1e24"/>
+    <g font-family="var(--sans)">
+      <text x="14" y="23" font-size="11" fill="#c9d1dc">‹ 全部紀錄</text>
+      <text x="110" y="23" font-size="10" fill="#727a86">專案名稱｜紀錄項目｜日期｜紀錄者</text>
+      <rect x="742" y="8" width="104" height="20" rx="4" fill="var(--amber)"/>
+      <text x="794" y="22" font-size="10.5" font-weight="700" fill="#1a1206" text-anchor="middle">產生報告</text>
+      <rect x="0" y="36" width="180" height="264" fill="#16181c"/>
+      <text x="14" y="60" font-size="10.5" font-weight="700" fill="#9aa3b2">照片</text>
+      <rect x="120" y="48" width="50" height="16" rx="4" fill="#22262e" stroke="var(--ui-2)"/>
+      <text x="145" y="59.5" font-size="8.5" fill="#c9d1dc" text-anchor="middle">＋ 匯入</text>
+      <g>
+        <rect x="10" y="74" width="160" height="42" rx="4" fill="#2a2418" stroke="var(--amber)"/>
+        <circle cx="26" cy="95" r="8" fill="var(--amber)"/><text x="26" y="98.5" font-size="9" font-weight="700" fill="#1a1206" text-anchor="middle">1</text>
+        <rect x="40" y="80" width="42" height="30" rx="3" fill="#3b4048"/>
+        <text x="90" y="92" font-size="8.5" fill="#c9d1dc">斜向埋管</text>
+        <text x="90" y="105" font-size="7.5" fill="#8fd694">已定位</text>
+        <rect x="10" y="122" width="160" height="42" rx="4" fill="#1b1e24" stroke="#2e333d"/>
+        <circle cx="26" cy="143" r="8" fill="#22262e" stroke="#3b414d"/><text x="26" y="146.5" font-size="9" font-weight="700" fill="#9aa3b2" text-anchor="middle">2</text>
+        <rect x="40" y="128" width="42" height="30" rx="3" fill="#31363f"/>
+        <text x="90" y="140" font-size="8.5" fill="#c9d1dc">水槽排水偏位</text>
+        <text x="90" y="153" font-size="7.5" fill="#e8b366">未定位</text>
+      </g>
+      <text x="90" y="290" font-size="8.5" fill="#4a515f" text-anchor="middle">拖曳可調順序</text>
+      <rect x="180" y="36" width="420" height="264" fill="#0e1013"/>
+      <rect x="230" y="66" width="320" height="200" fill="#fff"/>
+      <rect x="258" y="92" width="130" height="148" fill="none" stroke="#1b1d21" stroke-width="3"/>
+      <rect x="404" y="92" width="120" height="148" fill="none" stroke="#1b1d21" stroke-width="3"/>
+      <circle cx="310" cy="150" r="10" fill="var(--amber)" stroke="#7a5200" stroke-width="2"/>
+      <text x="310" y="154" font-size="10" font-weight="700" fill="#1a1206" text-anchor="middle">1</text>
+      <path d="M310 150 L338 122 A40 40 0 0 1 352 148 Z" fill="rgba(255,179,0,.3)" stroke="var(--amber)"/>
+      <circle cx="470" cy="190" r="10" fill="#fff" stroke="#222" stroke-width="2"/>
+      <text x="470" y="194" font-size="10" font-weight="700" fill="#222" text-anchor="middle">3</text>
+      <text x="390" y="288" font-size="9" fill="#4a515f" text-anchor="middle">滾輪縮放 · 拖曳平移 · 點一下放位置點</text>
+      <rect x="600" y="36" width="260" height="264" fill="#1b1e24"/>
+      <rect x="600" y="36" width="260" height="30" fill="#22262e"/>
+      <text x="614" y="56" font-size="9.5" fill="#c9d1dc">✏ 標註工具：筆 線 箭頭 框 圓 字</text>
+      <rect x="620" y="80" width="220" height="130" rx="3" fill="#3b4048"/>
+      <rect x="648" y="104" width="96" height="66" fill="none" stroke="#e53935" stroke-width="3"/>
+      <text x="760" y="100" font-size="11" font-weight="700" fill="#ffd400">裂縫</text>
+      <rect x="614" y="222" width="232" height="46" rx="4" fill="#14161a" stroke="#2e333d"/>
+      <text x="626" y="242" font-size="9" fill="#9aa3b2">說明文字：</text>
+      <text x="626" y="257" font-size="9.5" fill="#e7eaef">3F 東側外牆磁磚空鼓約 0.6 m²…</text>
+    </g>
+  </svg>
+  <figcaption>左：照片清單（拖曳排序）　中：平面圖（定位）　右：標註與說明。兩側欄寬可拖分隔線調整，雙擊還原</figcaption>
+</figure>
+
+<div class="tableWrap">
+<table>
+  <thead><tr><th>要做什麼</th><th>怎麼做</th></tr></thead>
+  <tbody>
+    <tr><td>匯入照片</td><td>左欄「＋ 匯入照片」，或<strong>直接把檔案拖進視窗</strong>。
+      支援<strong>影像與 PDF</strong>（多頁 PDF 每頁自動變一張照片）；依檔名自然排序</td></tr>
+    <tr><td>匯入平面圖</td><td>中欄右上「＋ 匯入平面圖」，或把圖檔<strong>拖到平面圖區</strong>。
+      支援<strong>影像、PDF</strong>，而且<strong>可以匯入很多張</strong>（各樓層一張）——
+      PDF 多頁會問要哪幾頁（例：<code>1,3-5</code> 或 <code>all</code>），每頁各成一張平面圖。
+      <strong>CAD 圖請先在 AutoCAD 裡輸出成 PDF</strong> 再匯入（DWG／DXF 不能直接丟進來）。
+      多張平面圖會在中欄上方變成<strong>分頁籤</strong>，點籤切換樓層，籤上的數字是釘在那層的照片數</td></tr>
+    <tr><td>調整照片順序</td><td>左欄直接拖曳；編號會同步到平面圖與報告</td></tr>
+    <tr><td>切換照片</td><td>點清單、或 <kbd>↑</kbd> <kbd>↓</kbd>、或右欄的 ‹ › 鈕</td></tr>
+    <tr><td>刪除照片</td><td>右欄下方「刪除照片」</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="s4"><span class="tag">03</span>標位置與拍攝方向</h2>
+
+<div class="step">
+  <figure>
+    <svg class="dg" viewBox="0 0 344 230" role="img" aria-label="平面圖上的位置點與拍攝方向錐">
+      <rect x="0" y="0" width="344" height="230" fill="#0e1013" rx="4"/>
+      <rect x="30" y="18" width="284" height="194" fill="#fff"/>
+      <rect x="56" y="40" width="110" height="150" fill="none" stroke="#1b1d21" stroke-width="3"/>
+      <rect x="182" y="40" width="106" height="150" fill="none" stroke="#1b1d21" stroke-width="3"/>
+      <circle cx="110" cy="112" r="13" fill="var(--amber)" stroke="#7a5200" stroke-width="2.5"/>
+      <text x="110" y="117" font-size="12" font-weight="700" fill="#1a1206" text-anchor="middle" font-family="var(--sans)">3</text>
+      <path d="M110 112 L146 76 A51 51 0 0 1 163 105 Z" fill="rgba(255,179,0,.32)" stroke="var(--amber)" stroke-width="1.5"/>
+      <line x1="110" y1="112" x2="152" y2="128" stroke="var(--amber)" stroke-width="1.5" stroke-dasharray="4 3"/>
+      <circle cx="152" cy="128" r="6" fill="#1b1e24" stroke="var(--amber)" stroke-width="2"/>
+      <text x="168" y="132" font-size="9.5" fill="var(--amber)" font-family="var(--mono)">方向把手</text>
+      <circle cx="236" cy="150" r="11" fill="#fff" stroke="#222" stroke-width="2"/>
+      <text x="236" y="154.5" font-size="11" font-weight="700" fill="#222" text-anchor="middle" font-family="var(--sans)">5</text>
+      <text x="172" y="206" font-size="9.5" fill="#8b9099" text-anchor="middle" font-family="var(--mono)">黃＝目前選取的照片　白＝其他照片</text>
+    </svg>
+    <figcaption>錐形＝相機面對的方向，會印在報告上</figcaption>
+  </figure>
+  <div>
+    <h3>選照片 → 點平面圖</h3>
+    <p>在左欄<strong>先選一張照片</strong>，然後<strong>在平面圖上點一下</strong>拍攝的位置 ——
+    就這樣，一個帶編號的位置點出現了。</p>
+    <p><strong>微調</strong>：拖曳圓點本身。<br>
+    <strong>拍攝方向</strong>：拖圓點旁邊虛線末端的小圓把手，轉出一個錐形，
+    代表相機面對的方向（吸附 5° 格點，按住 <kbd>Shift</kbd> 自由角度）。
+    也可以在右欄下方直接輸入角度。</p>
+    <p class="sub">平面圖本身：滾輪縮放、按住空白處拖曳平移、「符合」一鍵置中。</p>
+    <p><strong>多張平面圖（樓層）</strong>：照片釘在哪一張圖上就屬於哪一層。
+    先點上方的分頁籤切到該樓層，再點圖定位；報告會<strong>每層各出一段圖面</strong>並印上圖名。
+    選取的照片若已釘在別層，介面會提醒「點這裡會移過來」。</p>
+    <p><strong>比例尺</strong>（要用 1:100 等真實比例出圖才需要）：按中欄的「比例尺」，
+    <strong>直接輸入原圖比例</strong>（例如 1:100）和原圖紙張（A0–A4 或自訂寬度）就完成。
+    由 <strong>PDF 匯入</strong>的平面圖已知原始頁面尺寸，選單第一項會出現「自動」，最省事。
+    圖檔被裁切或縮放過、不確定紙張大小時，按「改用兩點量測」在圖上點一段已知距離即可。</p>
+  </div>
+</div>
+
+<h2 id="s5"><span class="tag">04</span>照片標註</h2>
+
+<div class="step">
+  <figure>
+    <svg class="dg" viewBox="0 0 344 200" role="img" aria-label="標註工具列與畫在照片上的紅框與文字">
+      <rect x="0" y="0" width="344" height="200" rx="4" fill="#1b1e24"/>
+      <rect x="0" y="0" width="344" height="34" fill="#22262e"/>
+      <g font-family="var(--mono)" font-size="9" fill="#c9d1dc">
+        <rect x="10" y="7" width="22" height="20" rx="3" fill="#2b313a"/><text x="21" y="21" text-anchor="middle">✥</text>
+        <rect x="36" y="7" width="22" height="20" rx="3" fill="var(--amber)"/><text x="47" y="21" text-anchor="middle" fill="#1a1206">✎</text>
+        <rect x="62" y="7" width="22" height="20" rx="3" fill="#2b313a"/><text x="73" y="21" text-anchor="middle">╱</text>
+        <rect x="88" y="7" width="22" height="20" rx="3" fill="#2b313a"/><text x="99" y="21" text-anchor="middle">➚</text>
+        <rect x="114" y="7" width="22" height="20" rx="3" fill="#2b313a"/><text x="125" y="21" text-anchor="middle">▭</text>
+        <rect x="140" y="7" width="22" height="20" rx="3" fill="#2b313a"/><text x="151" y="21" text-anchor="middle">◯</text>
+        <rect x="166" y="7" width="22" height="20" rx="3" fill="#2b313a"/><text x="177" y="21" text-anchor="middle">字</text>
+      </g>
+      <circle cx="212" cy="17" r="7" fill="#e53935"/><circle cx="230" cy="17" r="7" fill="#ffd400"/>
+      <circle cx="248" cy="17" r="7" fill="#43a047"/><circle cx="266" cy="17" r="7" fill="#1e88e5"/>
+      <text x="296" y="21" font-size="9" fill="#9aa3b2" font-family="var(--sans)">復原</text>
+      <rect x="30" y="50" width="284" height="136" rx="3" fill="#3b4048"/>
+      <rect x="70" y="76" width="130" height="84" fill="none" stroke="#e53935" stroke-width="4"/>
+      <path d="M262 70 L216 96" stroke="#ffd400" stroke-width="4" stroke-linecap="round"/>
+      <path d="M228 88l-14 9 4-16z" fill="#ffd400"/>
+      <text x="234" y="64" font-size="13" font-weight="700" fill="#ffd400" font-family="var(--sans)" stroke="#000" stroke-width="2.5" paint-order="stroke">空鼓範圍</text>
+    </svg>
+    <figcaption>畫在照片上的標記會原封不動出現在報告上（向量，放大不糊）</figcaption>
+  </figure>
+  <div>
+    <h3>七種工具，畫錯可復原</h3>
+    <p>選中照片後，用右欄上方的工具列在照片上畫：
+    <strong>畫筆、直線、箭頭、矩形、橢圓、文字</strong>，六色三種粗細。</p>
+    <p>「選取」工具（<kbd>V</kbd>）可以點選已畫的標記<strong>拖曳移動</strong>，
+    或按 <kbd>Del</kbd> 刪除。<kbd>Ctrl</kbd>+<kbd>Z</kbd> 復原。</p>
+    <div class="tableWrap"><table>
+      <thead><tr><th>鍵</th><th>工具</th><th>鍵</th><th>工具</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>V</kbd></td><td>選取／移動</td><td><kbd>R</kbd></td><td>矩形</td></tr>
+        <tr><td><kbd>P</kbd></td><td>畫筆</td><td><kbd>O</kbd></td><td>橢圓</td></tr>
+        <tr><td><kbd>L</kbd></td><td>直線</td><td><kbd>T</kbd></td><td>文字</td></tr>
+        <tr><td><kbd>A</kbd></td><td>箭頭</td><td><kbd>Del</kbd></td><td>刪除選取</td></tr>
+      </tbody>
+    </table></div>
+    <p class="sub">照片下方的<strong>說明文字</strong>欄位就是報告上印在照片底下的那行字。</p>
+  </div>
+</div>
+
+<h2 id="s6"><span class="tag">05</span>裁切（隨時可還原）</h2>
+
+<div class="step">
+  <figure>
+    <svg class="dg" viewBox="0 0 344 190" role="img" aria-label="裁切框：八個把手與三分格線">
+      <rect x="0" y="0" width="344" height="190" rx="4" fill="#1b1e24"/>
+      <rect x="42" y="20" width="260" height="150" fill="#3b4048"/>
+      <rect x="42" y="20" width="260" height="150" fill="rgba(0,0,0,.55)"/>
+      <rect x="86" y="44" width="180" height="104" fill="#3b4048"/>
+      <rect x="86" y="44" width="180" height="104" fill="none" stroke="#fff" stroke-width="1.6"/>
+      <line x1="146" y1="44" x2="146" y2="148" stroke="rgba(255,255,255,.35)"/>
+      <line x1="206" y1="44" x2="206" y2="148" stroke="rgba(255,255,255,.35)"/>
+      <line x1="86" y1="79" x2="266" y2="79" stroke="rgba(255,255,255,.35)"/>
+      <line x1="86" y1="113" x2="266" y2="113" stroke="rgba(255,255,255,.35)"/>
+      <g fill="#fff" stroke="#111" stroke-width="1.4">
+        <rect x="80" y="38" width="12" height="12" rx="2"/><rect x="260" y="38" width="12" height="12" rx="2"/>
+        <rect x="80" y="142" width="12" height="12" rx="2"/><rect x="260" y="142" width="12" height="12" rx="2"/>
+        <rect x="170" y="38" width="12" height="12" rx="2"/><rect x="170" y="142" width="12" height="12" rx="2"/>
+        <rect x="80" y="90" width="12" height="12" rx="2"/><rect x="260" y="90" width="12" height="12" rx="2"/>
+      </g>
+    </svg>
+    <figcaption>拖出要保留的範圍 → 套用；按「全圖」隨時還原</figcaption>
+  </figure>
+  <div>
+    <h3>平面圖和照片都能裁</h3>
+    <p>平面圖太大張、或照片邊緣有雜物時，按「<strong>裁切</strong>」
+    （平面圖在中欄上方、照片在右欄上方），拖出要保留的範圍後「套用裁切」。</p>
+    <p><strong>裁切不會破壞原圖</strong> —— 它只是記住一個範圍，
+    按「全圖」隨時整張還原。已畫的標註和位置點座標都不會跑掉。</p>
+    <p class="sub">平面圖裁切後，落在範圍外的位置點不會出現在報告上，介面會提醒你有幾個。</p>
+  </div>
+</div>
+
+<h2 id="s7"><span class="tag">06</span>產生報告</h2>
+
+<figure class="fig">
+  <svg class="dg" viewBox="0 0 860 96" role="img" aria-label="報告設定列：紙張、方向、每張圖面張數、版面、字級、引線">
+    <rect x="0" y="0" width="860" height="96" rx="4" fill="#1b1e24"/>
+    <g font-family="var(--sans)">
+      <text x="16" y="26" font-size="12" font-weight="700" fill="#e7eaef">報告預覽</text>
+      <g font-size="10.5" fill="#727a86">
+        <text x="120" y="22">紙張</text><rect x="120" y="30" width="92" height="22" rx="4" fill="#14161a" stroke="#3b414d"/>
+        <text x="130" y="45" fill="#e7eaef">A3（420×297）▾</text>
+        <text x="228" y="22">方向</text><rect x="228" y="30" width="62" height="22" rx="4" fill="#14161a" stroke="#3b414d"/>
+        <text x="238" y="45" fill="#e7eaef">橫式 ▾</text>
+        <text x="306" y="22">每張圖面</text><rect x="306" y="30" width="72" height="22" rx="4" fill="#14161a" stroke="#3b414d"/>
+        <text x="316" y="45" fill="#e7eaef">8 張 ▾</text>
+        <text x="394" y="22">版面</text><rect x="394" y="30" width="118" height="22" rx="4" fill="#14161a" stroke="var(--amber)"/>
+        <text x="404" y="45" fill="#e7eaef">自動（填滿版面）▾</text>
+        <text x="528" y="22">字級</text><rect x="528" y="30" width="62" height="22" rx="4" fill="#14161a" stroke="#3b414d"/>
+        <text x="538" y="45" fill="#e7eaef">標準 ▾</text>
+        <text x="612" y="44" fill="#c9d1dc">☑ 引線　☑ 顯示其他頁位置</text>
+      </g>
+      <rect x="742" y="26" width="104" height="26" rx="4" fill="var(--amber)"/>
+      <text x="794" y="44" font-size="11" font-weight="700" fill="#1a1206" text-anchor="middle">列印 / 存成 PDF</text>
+      <text x="16" y="80" font-size="10.5" fill="#727a86">照片超過「每張圖面」的張數會自動分頁；分頁時其他頁的位置點以灰色虛線圓顯示在平面圖上當參考</text>
+    </g>
+  </svg>
+  <figcaption>編輯畫面右上「產生報告」→ 這條設定列 → 下方即時預覽</figcaption>
+</figure>
+
+<p><strong>比例</strong>：預設「自動大小」（平面圖塞滿可用空間）。
+設定過比例尺後可改選 <strong>1:50–1:500</strong> —— 平面圖會以真實比例放置，
+圖上印出「SCALE 1:N」標示；放不下時會提示需要多大的紙，
+並誠實告知目前實際縮到約幾分之一（不會印錯誤的比例標示）。
+多張平面圖時各層各自判斷；還沒設比例尺的那層維持自動大小。</p>
+
+<p><strong>圖框</strong>：報告列的「圖框」按鈕 —— 事務所自訂標題欄。
+可設定<strong>事務所名稱、Logo</strong>（印在標題欄最左），
+以及最多 6 個<strong>額外欄位</strong>（例如「監造：王大明 建築師」，印在日期前面）。
+勾「設為新紀錄的預設圖框」，之後每份新紀錄自動套用；Logo 也會跟著 .sitelog 匯出。</p>
+
+<p><strong>版面</strong>有三種：</p>
+
+<div class="tableWrap">
+<table>
+  <thead><tr><th>版面</th><th>誰決定位置</th><th>什麼時候用</th></tr></thead>
+  <tbody>
+    <tr><td>自動（填滿版面）</td><td>程式。試算各種「每欄幾張、上下放不放、欄寬多寬」的組合，挑留白最少的。平面圖寬扁時照片會自動排到上下，把空白吃掉</td><td>預設，通常直接可用</td></tr>
+    <tr><td>只放兩側</td><td>程式，但照片只放左右兩欄</td><td>偏好傳統對稱版面時</td></tr>
+    <tr><td>自由排版</td><td><strong>完全由你</strong>，見下一節</td><td>自動排的不合意時</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2 id="s8"><span class="tag">07</span>自由排版</h2>
+
+<p>切到自由排版的瞬間，程式會把<strong>目前自動排的結果原封不動抄過來</strong>當起點 ——
+你是接手微調，不是從空白開始。排壞了按「<strong>全部重排</strong>」隨時回到自動結果。</p>
+
+<div class="step">
+  <figure>
+    <svg class="dg" viewBox="0 0 344 210" role="img" aria-label="拖曳照片移動位置">
+      <rect x="0" y="0" width="344" height="210" fill="var(--sheet)" rx="3"/>
+      <rect x="8" y="8" width="328" height="194" fill="none" stroke="var(--sheet-line)" stroke-width="2"/>
+      <rect x="8" y="8" width="328" height="22" fill="none" stroke="var(--sheet-line)" stroke-width="1.4"/>
+      <rect x="132" y="62" width="130" height="86" fill="#fff" stroke="var(--sheet-line)" stroke-width="1.4"/>
+      <text x="197" y="110" text-anchor="middle" font-family="var(--mono)" font-size="9" fill="#9aa3b2">平面圖</text>
+      <rect x="22" y="46" width="72" height="48" fill="var(--sheet-fill)" stroke="var(--sheet-line)" stroke-width="1.4"/>
+      <rect x="22" y="110" width="72" height="48" fill="var(--sheet-fill)" stroke="var(--sheet-line)" stroke-width="1.4"/>
+      <rect x="200" y="34" width="72" height="48" fill="var(--sheet-fill)" stroke="var(--amber)" stroke-width="2.4"/>
+      <text x="236" y="63" text-anchor="middle" font-family="var(--mono)" font-size="12" font-weight="700" fill="#3b4048">3</text>
+      <path d="M298 128 L262 70" stroke="var(--amber)" stroke-width="2" stroke-dasharray="5 4" stroke-linecap="round"/>
+      <path d="M268 62l-8 12 13 1z" fill="var(--amber)"/>
+    </svg>
+    <figcaption>按住照片拖到哪，印出來就在哪</figcaption>
+  </figure>
+  <div>
+    <h3>移動與縮放</h3>
+    <p><strong>移動</strong>：按住照片或平面圖直接拖。說明文字跟照片是一體的，會一起走；引線自動重連。</p>
+    <p><strong>縮放</strong>：滑鼠移上去，右下角出現<strong>橘色小方塊</strong>，拖它改大小。
+    長寬比自動維持，不會變形。</p>
+    <p><strong>微調</strong>：點一下選取（外框變橘），方向鍵一次 1mm，<kbd>Shift</kbd>+方向鍵 5mm。</p>
+    <p><strong>做錯了？</strong><kbd>Ctrl</kbd>+<kbd>Z</kbd> 復原上一步排版動作、
+    <kbd>Ctrl</kbd>+<kbd>Y</kbd> 重做（拖曳、縮放、互換、微調、全部重排都算一步）。</p>
+  </div>
+</div>
+
+<div class="step">
+  <figure>
+    <svg class="dg" viewBox="0 0 344 210" role="img" aria-label="拖到另一張照片上互換位置">
+      <rect x="0" y="0" width="344" height="210" fill="var(--sheet)" rx="3"/>
+      <rect x="8" y="8" width="328" height="194" fill="none" stroke="var(--sheet-line)" stroke-width="2"/>
+      <rect x="30" y="40" width="100" height="66" fill="var(--sheet-fill)" stroke="var(--amber)" stroke-width="2.4" opacity=".55"/>
+      <text x="80" y="78" text-anchor="middle" font-family="var(--mono)" font-size="13" font-weight="700" fill="#3b4048" opacity=".55">2</text>
+      <rect x="214" y="120" width="100" height="66" fill="var(--sheet-fill)" stroke="var(--amber)" stroke-width="3.2"/>
+      <text x="264" y="158" text-anchor="middle" font-family="var(--mono)" font-size="13" font-weight="700" fill="#3b4048">7</text>
+      <path d="M118 96 C168 130 178 130 212 146" fill="none" stroke="var(--amber)" stroke-width="2.4" stroke-dasharray="6 4"/>
+      <path d="M204 138l12 9-15 3z" fill="var(--amber)"/>
+      <path d="M226 112 C186 84 166 76 136 60" fill="none" stroke="var(--ink-3)" stroke-width="1.6" stroke-dasharray="4 4"/>
+      <path d="M144 68l-12-9 15-3z" fill="var(--ink-3)"/>
+      <text x="172" y="196" text-anchor="middle" font-family="var(--mono)" font-size="9.5" fill="var(--ink-3)">放開＝兩張互換（照片＋說明一起）</text>
+    </svg>
+    <figcaption>目標照片會亮粗橘框，放開即互換</figcaption>
+  </figure>
+  <div>
+    <h3>互換兩張照片</h3>
+    <p>把一張照片<strong>拖到另一張照片上面</strong>，目標會亮起粗橘框 ——
+    放開，兩張就<strong>連同說明文字互換位置與大小</strong>，其他照片一張都不動。</p>
+    <p><strong>跨頁也行</strong>：拖到預覽視窗上下邊緣會自動捲動，
+    拖到另一張圖面上（整張圖面亮橘框）放開就搬過去；
+    跟那頁的照片互換也可以。某頁被搬空後那頁自動消失。</p>
+    <p class="sub">有多張平面圖時，照片只能在<strong>同一樓層的分頁</strong>之間搬 ——
+    照片跟著它釘的那張圖走；要換樓層請回編輯畫面重新標位置。</p>
+    <p class="sub">只想移動、不想互換？按住 <kbd>Alt</kbd> 拖，就不會觸發互換（也暫時關閉吸附）。</p>
+  </div>
+</div>
+
+<div class="step">
+  <figure>
+    <svg class="dg" viewBox="0 0 344 210" role="img" aria-label="對齊時出現洋紅色輔助線">
+      <rect x="0" y="0" width="344" height="210" fill="var(--sheet)" rx="3"/>
+      <rect x="8" y="8" width="328" height="194" fill="none" stroke="var(--sheet-line)" stroke-width="2"/>
+      <path d="M118 8 V202" stroke="var(--magenta)" stroke-width="1.6" stroke-dasharray="6 4"/>
+      <path d="M8 96 H336" stroke="var(--magenta)" stroke-width="1.6" stroke-dasharray="6 4"/>
+      <rect x="118" y="40" width="86" height="52" fill="var(--sheet-fill)" stroke="var(--sheet-line)" stroke-width="1.4"/>
+      <rect x="118" y="104" width="86" height="52" fill="var(--sheet-fill)" stroke="var(--amber)" stroke-width="2.4"/>
+      <rect x="232" y="40" width="86" height="52" fill="var(--sheet-fill)" stroke="var(--sheet-line)" stroke-width="1.4"/>
+    </svg>
+    <figcaption>洋紅虛線＝正在對齊到那條線上</figcaption>
+  </figure>
+  <div>
+    <h3>對齊吸附</h3>
+    <p>拖近其他照片、平面圖或圖框的邊與中線時會<strong>自動吸上去</strong>，
+    同時畫出洋紅色虛線。放開就是對齊好的。</p>
+    <p>操作列的「對齊吸附」勾選可整個關掉；按住 <kbd>Alt</kbd> 是暫時關。</p>
+    <p class="sub">改紙張大小（例如 A3 → A1）時，整個排好的版面會<strong>自動等比放大</strong>，
+    不必重排。</p>
+  </div>
+</div>
+
+<h3>先在這裡練一下</h3>
+<p class="sub">和真工具同一套邏輯：拖曳、吸附、右下角縮放、拖到另一塊上互換、方向鍵微調。</p>
+
+<div class="sandbox">
+  <div class="sbStage" id="stage" tabindex="0" aria-label="自由排版練習區">
+    <div class="sbTitle">專案名稱　　紀錄項目　　日期</div>
+  </div>
+  <div class="sbBar">
+    <label><input type="checkbox" id="sbSnap" checked> 對齊吸附</label>
+    <button id="sbReset" type="button">重排</button>
+    <span class="sbRead" id="sbRead">拖拖看方塊，或拖到另一塊上互換</span>
+  </div>
+</div>
+
+<h2 id="s9"><span class="tag">08</span>印成 PDF</h2>
+
+<div class="step">
+  <figure>
+    <svg class="dg" viewBox="0 0 344 208" role="img" aria-label="列印對話框的三個關鍵設定">
+      <rect x="0" y="0" width="344" height="208" rx="6" fill="var(--card)" stroke="var(--rule-2)"/>
+      <text x="18" y="30" font-size="13" font-weight="700" fill="var(--ink)" font-family="var(--sans)">列印</text>
+      <g font-family="var(--sans)" font-size="11.5" fill="var(--ink-2)">
+        <text x="18" y="62">目的地</text>
+        <rect x="110" y="46" width="216" height="24" rx="4" fill="none" stroke="var(--amber)" stroke-width="1.8"/>
+        <text x="122" y="62" fill="var(--ink)" font-weight="700">另存為 PDF ▾</text>
+        <text x="18" y="100">邊界</text>
+        <rect x="110" y="84" width="216" height="24" rx="4" fill="none" stroke="var(--amber)" stroke-width="1.8"/>
+        <text x="122" y="100" fill="var(--ink)" font-weight="700">無 ▾</text>
+        <text x="18" y="138">背景圖形</text>
+        <rect x="110" y="124" width="18" height="18" rx="3" fill="var(--amber)"/>
+        <path d="M114 133l4 4 7-8" fill="none" stroke="#1a1206" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="136" y="138" fill="var(--ink)" font-weight="700">勾選</text>
+      </g>
+      <rect x="222" y="166" width="104" height="26" rx="5" fill="var(--amber)"/>
+      <text x="274" y="184" font-size="12" font-weight="700" fill="#1a1206" text-anchor="middle" font-family="var(--sans)">儲存</text>
+    </svg>
+    <figcaption>三個設定：另存為 PDF、邊界「無」、勾「背景圖形」</figcaption>
+  </figure>
+  <div>
+    <h3>「列印 / 存成 PDF」</h3>
+    <p>報告預覽右上角按下去，瀏覽器的列印對話框打開後確認三件事：</p>
+    <p><strong>1.</strong> 目的地選「另存為 PDF」<br>
+    <strong>2.</strong> 邊界設「<strong>無</strong>」—— 否則會縮一圈<br>
+    <strong>3.</strong> 勾選「<strong>背景圖形</strong>」—— 否則部分線條會消失</p>
+    <p><strong>印出來的只有圖紙本身</strong>：操作列、把手、對齊線、空頁提示都不會出現在 PDF 裡。
+    多張圖面自動成為 PDF 的多頁。</p>
+    <p class="sub">PDF 裡的文字與線條是向量：檔案小、線條銳利、文字可搜尋。</p>
+  </div>
+</div>
+
+<h2 id="s10"><span class="tag">09</span>存檔與備份</h2>
+
+<p><strong>自動存檔</strong>：每個改動都即時存進瀏覽器（右上角有「已儲存」指示），
+關掉分頁、重開機都還在。</p>
+
+<div class="note">
+  <span class="lbl">重要：資料存在「這台電腦的這個瀏覽器」裡</span>
+  <p>換電腦、重灌系統、清除瀏覽器資料，紀錄就沒了。
+  所以重要的紀錄請定期按「<strong>匯出紀錄檔</strong>」存成 <code>.sitelog</code> 檔 ——
+  它包含這份紀錄的<strong>全部內容</strong>（各張平面圖、照片、位置、標註、說明），
+  拿到任何電腦用「開啟紀錄檔」讀回來就完整還原。</p>
+  <p class="sub">主介面每張卡片上也有「匯出」，不用進編輯畫面。</p>
+</div>
+
+<h2 id="s11"><span class="tag">10</span>常見問題</h2>
+
+<div class="tableWrap">
+<table>
+  <thead><tr><th>狀況</th><th>處理</th></tr></thead>
+  <tbody>
+    <tr><td>報告上照片是空的</td><td>那張照片還沒標位置 —— 報告列會提示「N 張照片未標位置」；照片仍會排入，只是沒有引線</td></tr>
+    <tr><td>引線亂了</td><td>切回「自動」版面重排；或在自由排版按「全部重排」</td></tr>
+    <tr><td>自由排版拖壞了</td><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> 一步步復原（<kbd>Ctrl</kbd>+<kbd>Y</kbd> 重做）；或「全部重排」整個回到自動排版</td></tr>
+    <tr><td>位置點消失</td><td>多半是平面圖裁切把它切掉了 —— 進裁切按「全圖」還原就回來</td></tr>
+    <tr><td>PDF 缺線條或縮小</td><td>列印對話框：邊界「無」＋勾「背景圖形」</td></tr>
+    <tr><td>想在兩台電腦接力做</td><td>A 電腦「匯出紀錄檔」→ 檔案帶到 B 電腦「開啟紀錄檔」</td></tr>
+    <tr><td>照片畫質</td><td>照片存放時縮到長邊 2000px（A1 上約 390 dpi），遠超印刷需求；再大的原始檔只會拖慢速度</td></tr>
+  </tbody>
+</table>
+</div>
+
+</div>
+
+<script>
+/* 練習沙盒：拖曳 / 吸附 / 縮放 / 互換，與工具本體同一套邏輯 */
+(function () {
+  'use strict';
+  var stage = document.getElementById('stage');
+  var snapChk = document.getElementById('sbSnap');
+  var readout = document.getElementById('sbRead');
+  var SNAP = 7, TOP = 26, PAD = 6;
+
+  var START = [
+    { id: 'plan', label: '平面圖', x: 110, y: 76, w: 200, h: 150, plan: true },
+    { id: 'a', label: '1', x: 14, y: 44, w: 82, h: 56 },
+    { id: 'b', label: '2', x: 14, y: 118, w: 82, h: 56 },
+    { id: 'c', label: '3', x: 330, y: 44, w: 82, h: 56 }
+  ];
+  var items = [], sel = null, drag = null;
+
+  function build() {
+    Array.prototype.slice.call(stage.querySelectorAll('.sbItem, .sbGuide'))
+      .forEach(function (n) { n.remove(); });
+    items = START.map(function (s) {
+      var o = Object.assign({}, s);
+      var n = document.createElement('div');
+      n.className = 'sbItem' + (o.plan ? ' plan' : '');
+      n.textContent = o.label;
+      var h = document.createElement('div');
+      h.className = 'sbHandle';
+      n.appendChild(h);
+      stage.appendChild(n);
+      o.el = n;
+      return o;
+    });
+    sel = null;
+    paint();
+    readout.textContent = '拖拖看方塊，或拖到另一塊上互換';
+  }
+
+  function paint() {
+    items.forEach(function (o) {
+      o.x = Math.max(PAD, Math.min(o.x, stage.clientWidth - PAD - o.w));
+      o.y = Math.max(TOP + PAD, Math.min(o.y, stage.clientHeight - PAD - o.h));
+      o.el.style.left = o.x + 'px'; o.el.style.top = o.y + 'px';
+      o.el.style.width = o.w + 'px'; o.el.style.height = o.h + 'px';
+      o.el.classList.toggle('sel', o === sel);
+    });
+  }
+
+  function guides(gx, gy) {
+    Array.prototype.slice.call(stage.querySelectorAll('.sbGuide')).forEach(function (n) { n.remove(); });
+    function line(css) {
+      var g = document.createElement('div');
+      g.className = 'sbGuide';
+      Object.assign(g.style, css);
+      stage.appendChild(g);
+    }
+    if (gx !== null) line({ left: gx + 'px', top: 0, width: '1px', height: '100%' });
+    if (gy !== null) line({ top: gy + 'px', left: 0, height: '1px', width: '100%' });
+  }
+
+  function markSwap(target) {
+    items.forEach(function (o) { o.el.classList.toggle('swap', o === target); });
+  }
+
+  function targetUnder(px, py, self) {
+    for (var i = 0; i < items.length; i++) {
+      var o = items[i];
+      if (o !== self && !o.plan && !self.plan &&
+          px >= o.x && px <= o.x + o.w && py >= o.y && py <= o.y + o.h) return o;
+    }
+    return null;
+  }
+
+  function snapTo(box, self) {
+    var xs = [PAD, stage.clientWidth - PAD, stage.clientWidth / 2];
+    var ys = [TOP + PAD, stage.clientHeight - PAD, (TOP + stage.clientHeight) / 2];
+    items.forEach(function (o) {
+      if (o === self) return;
+      xs.push(o.x, o.x + o.w, o.x + o.w / 2);
+      ys.push(o.y, o.y + o.h, o.y + o.h / 2);
+    });
+    function best(own, cand) {
+      var hit = null;
+      own.forEach(function (a) {
+        cand.forEach(function (v) {
+          var d = v - a;
+          if (Math.abs(d) <= SNAP && (!hit || Math.abs(d) < Math.abs(hit.d))) hit = { d: d, v: v };
+        });
+      });
+      return hit;
+    }
+    var hx = best([box.x, box.x + box.w / 2, box.x + box.w], xs);
+    var hy = best([box.y, box.y + box.h / 2, box.y + box.h], ys);
+    return { dx: hx ? hx.d : 0, dy: hy ? hy.d : 0, gx: hx ? hx.v : null, gy: hy ? hy.v : null };
+  }
+
+  stage.addEventListener('pointerdown', function (e) {
+    var node = e.target.closest('.sbItem');
+    if (!node) { sel = null; paint(); return; }
+    var o = items.filter(function (i) { return i.el === node; })[0];
+    if (!o) return;
+    sel = o; paint();
+    drag = {
+      o: o, resize: !!e.target.closest('.sbHandle'),
+      sx: e.clientX, sy: e.clientY,
+      x0: o.x, y0: o.y, w0: o.w, h0: o.h, ar: o.h / o.w
+    };
+    stage.setPointerCapture(e.pointerId);
+    e.preventDefault();
+  });
+
+  stage.addEventListener('pointermove', function (e) {
+    if (!drag) return;
+    var dx = e.clientX - drag.sx, dy = e.clientY - drag.sy, o = drag.o;
+    var box = drag.resize
+      ? { x: drag.x0, y: drag.y0, w: Math.max(40, drag.w0 + dx), h: Math.max(40, drag.w0 + dx) * drag.ar }
+      : { x: drag.x0 + dx, y: drag.y0 + dy, w: o.w, h: o.h };
+
+    var r = stage.getBoundingClientRect();
+    var tgt = (!drag.resize && !e.altKey)
+      ? targetUnder(e.clientX - r.left, e.clientY - r.top, o) : null;
+    drag.swapWith = tgt;
+    markSwap(tgt);
+
+    var gx = null, gy = null;
+    if (snapChk.checked && !e.altKey && !tgt) {
+      var sn = snapTo(box, o);
+      if (drag.resize) { if (sn.dx) { box.w = Math.max(40, box.w + sn.dx); box.h = box.w * drag.ar; } }
+      else { box.x += sn.dx; box.y += sn.dy; }
+      gx = sn.gx; gy = sn.gy;
+    }
+    o.x = box.x; o.y = box.y; o.w = box.w; o.h = box.h;
+    guides(gx, gy);
+    paint();
+    readout.textContent = tgt ? '放開與「' + tgt.label + '」互換'
+      : drag.resize ? '寬 ' + Math.round(o.w) + ' × 高 ' + Math.round(o.h)
+      : 'x ' + Math.round(o.x) + ' , y ' + Math.round(o.y);
+  });
+
+  function endDrag(e) {
+    if (!drag) return;
+    var d = drag; drag = null;
+    guides(null, null);
+    markSwap(null);
+    if (d.swapWith) {
+      var o = d.o, t = d.swapWith;
+      o.x = t.x; o.y = t.y;
+      t.x = d.x0; t.y = d.y0;
+      readout.textContent = '已互換「' + o.label + '」和「' + t.label + '」';
+      paint();
+    }
+    try { stage.releasePointerCapture(e.pointerId); } catch (_) {}
+  }
+  stage.addEventListener('pointerup', endDrag);
+  stage.addEventListener('pointercancel', endDrag);
+
+  stage.addEventListener('keydown', function (e) {
+    if (!sel || e.key.indexOf('Arrow') !== 0) return;
+    var step = e.shiftKey ? 5 : 1;
+    if (e.key === 'ArrowLeft') sel.x -= step;
+    if (e.key === 'ArrowRight') sel.x += step;
+    if (e.key === 'ArrowUp') sel.y -= step;
+    if (e.key === 'ArrowDown') sel.y += step;
+    paint();
+    readout.textContent = 'x ' + Math.round(sel.x) + ' , y ' + Math.round(sel.y);
+    e.preventDefault();
+  });
+
+  document.getElementById('sbReset').addEventListener('click', build);
+  window.addEventListener('resize', paint);
+  build();
+})();
+</script>
