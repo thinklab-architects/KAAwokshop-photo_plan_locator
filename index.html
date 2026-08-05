@@ -1441,6 +1441,62 @@ body{
   </div>
   <div class="ft"><span>圖說紀錄產生器 · 吳欣儒</span><span>14 / 14</span></div>
 </section>
+<!-- ============================== 15 · 連結（收尾） ============================== -->
+<section class="slide cover lg">
+  <div class="cv" style="right:96px;justify-content:center">
+    <div class="eyebrow">帶 回 去 用</div>
+    <div class="big" style="font-size:70px;line-height:1.12;margin-top:20px">程式跟這份簡報都在 GitHub</div>
+    <div style="font-size:21px;letter-spacing:.03em;line-height:1.6;margin-top:14px;opacity:.86;max-width:1180px">
+      不用安裝、不用註冊。線上版直接開就能用，資料存在你自己的瀏覽器裡，照片不會離開你的電腦。
+      要帶回事務所就下載整包，雙擊 <code style="font-family:inherit;background:rgba(255,255,255,.16);
+      border-radius:4px;padding:1px 7px">app/開啟圖說紀錄產生器.cmd</code> 即可。
+    </div>
+    <div class="rule"></div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:26px;max-width:1180px">
+
+      <a href="https://thinklab-architects.github.io/KAAwokshop-photo_plan_locator/app/"
+         target="_blank" rel="noopener"
+         style="display:block;text-decoration:none;background:rgba(255,255,255,.15);
+                border:1px solid rgba(255,255,255,.34);border-radius:8px;padding:22px 24px;
+                transition:background .18s ease,border-color .18s ease">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="num" style="background:#fff;color:#2E3766">1</div>
+          <div style="font-size:26px;font-weight:700;color:#fff;line-height:1.25">線上直接試用</div>
+          <div style="margin-left:auto;font-size:26px;color:rgba(255,255,255,.75)">↗</div>
+        </div>
+        <div style="font-size:19px;color:rgba(255,255,255,.86);line-height:1.5;margin-top:10px">
+          開起來就有兩份示範紀錄，可以直接按「產生報告」看結果
+        </div>
+        <div style="font-size:17px;color:#fff;opacity:.72;line-height:1.45;margin-top:12px;word-break:break-all">
+          thinklab-architects.github.io/KAAwokshop-photo_plan_locator/app/
+        </div>
+      </a>
+
+      <a href="https://github.com/thinklab-architects/KAAwokshop-photo_plan_locator"
+         target="_blank" rel="noopener"
+         style="display:block;text-decoration:none;background:rgba(255,255,255,.15);
+                border:1px solid rgba(255,255,255,.34);border-radius:8px;padding:22px 24px;
+                transition:background .18s ease,border-color .18s ease">
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="num" style="background:#fff;color:#2E3766">2</div>
+          <div style="font-size:26px;font-weight:700;color:#fff;line-height:1.25">原始碼與下載</div>
+          <div style="margin-left:auto;font-size:26px;color:rgba(255,255,255,.75)">↗</div>
+        </div>
+        <div style="font-size:19px;color:rgba(255,255,255,.86);line-height:1.5;margin-top:10px">
+          Code → Download ZIP 整包帶走，程式碼隨你改
+        </div>
+        <div style="font-size:17px;color:#fff;opacity:.72;line-height:1.45;margin-top:12px;word-break:break-all">
+          github.com/thinklab-architects/KAAwokshop-photo_plan_locator
+        </div>
+      </a>
+
+    </div>
+
+    <div class="who" style="margin-top:44px;font-size:22px">吳欣儒　·　高雄建築師公會 KAA AI WORKSHOP　·　2026.08</div>
+  </div>
+  <div class="mark">THINKLAB<br>2026</div>
+</section>
 
 
 
@@ -1574,6 +1630,8 @@ body{
   });
   document.getElementById('viewport').addEventListener('click', function(e){
     if(e.target.tagName === 'VIDEO') return;
+    /* 連結要能點得開，不要被翻頁吃掉 */
+    if(e.target.closest && e.target.closest('a')) return;
     (e.clientX < window.innerWidth * 0.28 ? prev : next)();
   });
 
